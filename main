@@ -1,0 +1,4495 @@
+final int frameRate = 40;  
+double FPS = 0;
+int sec = second();   
+int lastSec = second(); 
+int fpsTimer = 0;  
+ 
+int newSystems = 0; 
+int pSystem = 0;
+
+boolean showAtractors = true;
+boolean debugParticle = false;
+boolean hideInfo = true;
+boolean showEmitters = true;
+
+double[] bgColor = {0,0,0};
+int generalColor = 255;
+int generalColor2 = 255;
+
+String currentTooltip = "";
+String currentTooltipName = "";
+println("¡Bienvenido al creador de sistemas de partículas!");
+println("");
+println("En este programa puedes crear todo tipo de efectos, customizando partículas, sus emisores y las relaciones entre ellos. Además, vienen incluidos una serie de ejemplos para que puedas ver algunas posibilidades existentes (¡Incluso son modificables!). Estos ejemplos están en la pestaña de sistema, en el menu de favoritos (la lista con la estrella encima).");
+println("");
+println("--------------------");
+println("");
+println("El programa se puede controlar enteramente con el ratón. Aun así, se recomienda usar el teclado para introducir cantidades más precisas en los selectores. Para hacer esto solo tienes que colocar el ratón encima del selector que quieras y teclear el valor que desees. Para más información sobre el programa y cómo usarlo, mira las descripciones de cada selector y visita el menú de ayuda (el signo de interrogante).");
+println("");
+println("--------------------");
+println("");
+println("Otra función interesante de este programa es la de descarga. Te permite imprimir aquí las características del sistema de partículas que has creado. Si estás satisfecho con el resultado puedes enviármelo a esta dirección de correo:y lo introduciré en el programa.");
+println("");
+println("El código aparecerá aquí:");
+println("");
+void main(){
+  animate(execute, frameRate);
+}
+
+//FUNCIONES AYUDA
+
+//Función ángulos a radianes
+double aToRad(double ang){
+  return ang*PI/180;
+}
+
+//Función radianes a ángulos
+double radToA(double x){
+  return x*180/PI
+}
+
+//Función distancia
+double D(double x1, double y1, double x2, double y2){
+  return sqrt(pow(x2-x1,2)+pow(y2-y1,2))
+}
+
+//Función intersección entre rectángulo y rectángulo
+boolean Intersect(double x1, double y1, double w1, double h1, double x2, double y2, double w2, double h2){
+ if(x1 + w1 >= x2 && x2 + w2 >= x1 &&
+    y1 + h1 >= y2 && y2 + h2 >= y1 ){
+   return true
+ } 
+ return false
+}
+
+//Función intersección punto y rectángulo
+boolean intersectPR(double x, double y, double width, double height, double px, double py){
+  if(px >= x && px <= x + width && py >= y && py <= y + height){
+    return true;
+  }
+  return false;
+}
+
+//Función intersección con círculo
+boolean intersectPC(double x, double y, double r, double px, double py){
+  if(D(x,y,px,py) < r){
+    return true;
+  }
+  return false;
+}
+
+//Función intersección con arco
+boolean intersectPA(double x, double y, double r, double arc, double px, double py){
+  if(D(x,y,px,py) < r && D(x,y,px,py) > r-arc){
+    return true;
+  }
+  return false;
+}
+
+boolean intersectEP(double x1, double y1, double x2, double y2, double width, double height){
+  boolean result = false;
+    
+  if(pow(x1-x2,2)/pow(width/2,2) + pow(y1-y2,2)/pow(height/2,2) <= 1){
+    result = true;
+  }
+  return result;
+}
+
+boolean intersectArc(double x1, double y1, double x2, double y2, double width, double height, double arc){
+  boolean result = false;
+    
+  if(pow(x1-x2,2)/pow(width/2,2) + pow(y1-y2,2)/pow(height/2,2) <= 1 && pow(x1-x2,2)/pow(width/2-arc/2,2) + pow(y1-y2,2)/pow(height/2-arc/2,2) > 1){
+    result = true;
+  }
+  return result;
+}
+
+//Redondeo en décimas
+double Round(double x){
+  double y = round(x*10);
+  return y/10
+}
+
+double roundTo(double x, int a){
+  double b = pow(10,a);
+  double y = round(x*b);
+  return y/b;
+}
+
+//Blending entre tres colores
+double[] blend(double[] stColor, double[] midColor, double[] endColor, double time){
+  double finalHue = stColor[0]+((midColor[0]-stColor[0])/50*time);
+  double finalSat = stColor[1]+((midColor[1]-stColor[1])/50*time);
+  double finalLum = stColor[2]+((midColor[2]-stColor[2])/50*time);
+  if(time > 50){
+    finalHue = midColor[0]+((endColor[0]-midColor[0])/50*(time-50));
+		finalSat = midColor[1]+((endColor[1]-midColor[1])/50*(time-50));
+  	finalLum = midColor[2]+((endColor[2]-midColor[2])/50*(time-50));
+  }
+  
+  double[] finalColor = {finalHue,finalSat,finalLum};
+  return finalColor
+}
+
+double map(double x, double y, double z){
+  return x*z/y;
+}
+double map2(double num, double min, double max, double min2, double max2){
+  return (num-min) * (max2 - min2) / (max - min) + min2;
+}
+
+//Conversión de HSL a RGB
+int[] fromHSLtoRGB(double h, double s, double l){
+  double c = (1 - abs(2*l - 1)) * s;
+	double x = c * (1 - abs((h/60) % 2 - 1));
+	double m = l - c/2;
+  
+  double r1;
+  double g1;
+  double b1;
+  if(h < 60){
+    r1 = c;
+    g1 = x;
+    b1 = 0;
+  }else if(h < 120){
+    r1 = x;
+    g1 = c;
+    b1 = 0;
+  }else if(h < 180){
+    r1 = 0;
+    g1 = c;
+    b1 = x;
+  }else if(h < 240){
+    r1 = 0;
+    g1 = x;
+    b1 = c;
+  }else if(h < 300){
+    r1 = x;
+    g1 = 0;
+    b1 = c;
+  }else{
+    r1 = c;
+    g1 = 0;
+    b1 = x;
+  } 
+  int r = round((r1+m)*255);
+  int g = round((g1+m)*255);
+  int b = round((b1+m)*255);
+  int[] colors = {r,g,b};
+  return colors
+}
+
+//Pillar números a partir de caracteres
+int getNum(char x){
+  int num;
+  switch(x){
+    case "0":
+    	num = 0;
+    break
+    case "1":
+    	num = 1;
+    break
+    case "2":
+    	num = 2;
+    break
+    case "3":
+    	num = 3;
+    break
+    case "4":
+    	num = 4;
+    break
+    case "5":
+    	num = 5;
+    break
+    case "6":
+    	num = 6;
+    break
+    case "7":
+    	num = 7;
+    break
+    case "8":
+    	num = 8;
+    break
+    case "9":
+    	num = 9;
+    break
+    case "A":
+    	num = 10;
+    break
+    case "B":
+    	num = 11;
+    break
+    case "C":
+    	num = 12;
+    break
+    case "D":
+    	num = 13;
+    break
+    case "E":
+    	num = 14;
+    break
+    case "F":
+    	num = 15;
+    break
+  }
+  return num;
+}
+
+//Convertir de hexadecimal a rgb
+int[] fromHexToRGB(String hex){
+  int[] c = new int[3];
+  char[] nHex = stringToCharArray(hex);
+  c[0] = getNum(nHex[0]) * 16 + getNum(nHex[1]);
+  c[1] = getNum(nHex[2]) * 16 + getNum(nHex[3]);
+  c[2] = getNum(nHex[4]) * 16 + getNum(nHex[5]);   
+  return c
+}
+
+String base16(int n){
+  String num;
+  switch(n){
+    case 0:
+    	num = "0";
+    break
+    case 1:
+    	num = "1";
+    break
+    case 2:
+    	num = "2";
+    break
+    case 3:
+    	num = "3";
+    break
+    case 4:
+    	num = "4";
+    break
+    case 5:
+    	num = "5";
+    break
+    case 6:
+    	num = "6";
+    break
+    case 7:
+    	num = "7";
+    break
+    case 8:
+    	num = "8";
+    break
+    case 9:
+    	num = "9";
+    break
+    case 10:
+    	num = "A";
+    break
+    case 11:
+    	num = "B";
+    break
+    case 12:
+    	num = "C";
+    break
+    case 13:
+    	num = "D";
+    break
+    case 14:
+    	num = "E";
+    break
+    case 15:
+    	num = "F";
+    break
+  }
+  return num;
+}
+
+String toBase16(int num){
+  String result = "";
+  int aux = num;
+  int size = 0;
+  do{
+    aux /= 16;
+    size++;
+  }while(aux >= 16);
+  int c = num / 16;
+  int r = num % 16;
+  double rs[] = new double[size];
+  int i = 0;
+  rs[i] = r;
+  while(c >= 16){
+    r = c % 16;
+    c = c / 16;
+    
+    i++;
+    rs[i] = r;
+  }
+  result += ""+base16(floor(c));
+  for(int j = rs.length-1; j > -1; j--){
+    result += ""+base16(round(rs[j]));
+  }
+  return result;
+}
+
+String fromRGBToHex(int[] rgb){
+  String c = "";
+  c += toBase16(rgb[0]);
+  c += toBase16(rgb[1]);
+  c += toBase16(rgb[2]);
+  return c;
+}
+
+//Función arco (fancy)
+void arc(double x, double y, double width, double height, double startAngle, double endAngle, int resolution){
+  double xP;
+  double yP;
+  double angle;
+  double fxP;
+  double fyP;
+  double fangle;
+  for(int i = 0; i < resolution+1; i++){
+    fangle = map2(i, 0, resolution, startAngle, endAngle);
+    fxP = x+width*cos(aToRad(fangle));
+    fyP = y-height*sin(aToRad(fangle));
+    if(i == 0){
+      angle = fangle;
+      xP = fxP;
+      yP = fyP;
+    }
+    line(xP,yP,fxP,fyP);
+    angle = fangle;
+    xP = fxP;
+    yP = fyP;
+    
+    
+  }
+}
+
+//rota un punto sobre un eje
+double[] rotatePoint(double x, double y, double rad, double angle){
+  double[] result = {x+rad*cos(aToRad(angle)),y-rad*sin(aToRad(angle))};
+  return result
+}
+
+//convierte el sistema a polar (sobre origen)
+double[] toPolar(double x, double y, double x2, double y2){
+  double angle = radToA(atan((x2-x)/(y2-y)));
+	angle += 90;
+  if(y2 > y){
+    angle += 180;
+  }
+  double dist = D(x,y,x2,y2);
+  double[] result = {dist,angle};
+  return result;
+}
+
+//pasa de polar a cartesiano (sin origen)
+double[] toCartesian(double d, double angle){
+  double[] results = {d*cos(aToRad(angle)),d*-sin(aToRad(angle))};
+  return results;
+}
+
+//hace cuadrados super customizables (fanciest function ever fancied)
+void fancySquare(double x, double y, double size, double cirSize, double angle){
+  double[] p1 = toPolar(x,y,x-size/2,y+size/2);
+  double[] p2 = toPolar(x,y,x+size/2,y+size/2);
+  double[] p3 = toPolar(x,y,x-size/2,y-size/2);
+  double[] p4 = toPolar(x,y,x+size/2,y-size/2);
+  double[] corner1 = rotatePoint(x,y,p1[0],p1[1]+angle); 
+  double[] corner2 = rotatePoint(x,y,p2[0],p2[1]+angle); 
+  double[] corner3 = rotatePoint(x,y,p3[0],p3[1]+angle); 
+  double[] corner4 = rotatePoint(x,y,p4[0],p4[1]+angle); 
+  
+  triangle(corner1[0],corner1[1],corner2[0],corner2[1],corner3[0],corner3[1]);
+  triangle(corner2[0],corner2[1],corner3[0],corner3[1],corner4[0],corner4[1]);
+  
+  if(cirSize > 0){
+    ellipse(corner1[0],corner1[1],cirSize,cirSize);
+    ellipse(corner2[0],corner2[1],cirSize,cirSize);
+    ellipse(corner3[0],corner3[1],cirSize,cirSize);
+    ellipse(corner4[0],corner4[1],cirSize,cirSize);
+
+    double[] p5 = toPolar(x,y,x-size/2-cirSize/2,y+size/2);
+    double[] p6 = toPolar(x,y,x-size/2,y+size/2+cirSize/2);
+
+    double[] p7 = toPolar(x,y,x+size/2+cirSize/2,y+size/2);
+    double[] p8 = toPolar(x,y,x+size/2,y+size/2+cirSize/2);
+
+    double[] p9 = toPolar(x,y,x-size/2-cirSize/2,y-size/2);
+    double[] p10 = toPolar(x,y,x-size/2,y-size/2-cirSize/2);
+
+    double[] p11 = toPolar(x,y,x+size/2+cirSize/2,y-size/2);
+    double[] p12 = toPolar(x,y,x+size/2,y-size/2-cirSize/2);
+
+    double[] border1 = rotatePoint(x,y,p5[0],p5[1]+angle);
+    double[] border2 = rotatePoint(x,y,p6[0],p6[1]+angle);
+    double[] border3 = rotatePoint(x,y,p7[0],p7[1]+angle);
+    double[] border4 = rotatePoint(x,y,p8[0],p8[1]+angle);
+    double[] border5 = rotatePoint(x,y,p9[0],p9[1]+angle);
+    double[] border6 = rotatePoint(x,y,p10[0],p10[1]+angle);
+    double[] border7 = rotatePoint(x,y,p11[0],p11[1]+angle);
+    double[] border8 = rotatePoint(x,y,p12[0],p12[1]+angle);
+
+    triangle(border1[0],border1[1],corner1[0],corner1[1],corner3[0],corner3[1]);
+    triangle(border5[0],border5[1],border1[0],border1[1],corner3[0],corner3[1]);
+
+    triangle(corner1[0],corner1[1],corner2[0],corner2[1],border2[0],border2[1]);
+    triangle(border4[0],border4[1],corner2[0],corner2[1],border2[0],border2[1]);
+
+    triangle(corner3[0],corner3[1],corner4[0],corner4[1],border6[0],border6[1]);
+    triangle(border8[0],border8[1],corner4[0],corner4[1],border6[0],border6[1]);
+
+    triangle(border3[0],border3[1],corner2[0],corner2[1],corner4[0],corner4[1]);
+    triangle(border3[0],border3[1],border7[0],border7[1],corner4[0],corner4[1]);
+  }
+  strokeWeight(1);
+}
+
+//funcion strella
+void polygon(double x, double y, double rad, int sides, double angle){
+  double miniAngle = 360/sides;
+  double corners[][] = new double[sides][2];
+  for(int i = 0; i < sides; i++){
+    double[] p1 = rotatePoint(x,y,rad,angle+miniAngle*i);
+    corners[i][0] = p1[0];
+    corners[i][1] = p1[1];
+  }
+  for(int i = 0; i < sides; i++){
+    if(i < sides-1){
+      triangle(x,y,corners[i][0],corners[i][1],corners[i+1][0],corners[i+1][1]);
+    }else{
+      triangle(x,y,corners[i][0],corners[i][1],corners[0][0],corners[0][1]);
+    }
+  }
+}
+
+void star(double x, double y, double rad, double starLength, double starFactor, int sides, double angle){
+  double miniAngle = 360/sides;
+  double corners[][] = new double[sides][2];
+  double starCorners[][] = new double[sides][2];
+  for(int i = 0; i < sides; i++){
+    double[] p1 = rotatePoint(x,y,rad,angle+miniAngle*i);
+    double[] s1 = rotatePoint(x,y,rad*starLength,angle+starFactor+miniAngle*i);
+    corners[i][0] = p1[0];
+    corners[i][1] = p1[1];
+    starCorners[i][0] = s1[0];
+    starCorners[i][1] = s1[1];
+  }
+  for(int i = 0; i < sides; i++){
+    if(i < sides-1){
+      triangle(x,y,corners[i][0],corners[i][1],corners[i+1][0],corners[i+1][1]);
+      triangle(starCorners[i][0],starCorners[i][1],corners[i][0],corners[i][1],corners[i+1][0],corners[i+1][1]);
+    }else{
+      triangle(x,y,corners[i][0],corners[i][1],corners[0][0],corners[0][1]);
+      triangle(starCorners[i][0],starCorners[i][1],corners[i][0],corners[i][1],corners[0][0],corners[0][1]);
+    }
+  }
+}
+
+int min(int n1, int n2){
+  if(n2 < n1){
+    return n2;
+  }
+  return n1;
+}
+
+//maybe?
+class color{
+  int[] rgb;
+  int[] hsl;
+  String hex;
+  color(){
+  	rgb = new int[3];
+		hsl = new int[3];
+  }
+}
+
+double[] copyColor(double[] c){
+  double[] result = new double[3];
+  result[0] = c[0];
+  result[1] = c[1];
+  result[2] = c[2];
+  return result;
+}
+
+//cosas que añadir:
+/*
+-Wiggle (el radio de la partícula sube y baja) OPCIONAL
+-Movimiento del emisor: seno, coseno y circular OPCIONAL
+-Opciones varias: color fondo, color ui primario y color ui secundario, esconder fps y partículas, etc...
+-Polígonos y estrellas como partículas (borde al polígono, borde a la estrella?) OPCIONAL
+-emisores secundarios
+-lista de favoritos
+-ayuda
+*/
+
+class vector{
+  double x;
+  double y;
+  vector(double x, double y){
+    this.x = x;
+    this.y = y;
+  }
+  
+  public void equal(double x2, double y2){
+    x = x2;
+		y = y2;
+  }
+  
+  public void add(vector v){
+    x += v.x;
+    y += v.y;
+  }
+  
+  public void sus(vector v){
+    x -= v.x;
+    y -= v.y;    
+  }
+  
+  public void mult(double escalar){
+    x *= escalar;
+    y *= escalar;
+  }
+  
+  public void div(double escalar){
+    x /= escalar;
+    y /= escalar;
+  }
+  
+  public double getMod(){
+    return sqrt(x*x+y*y);
+  }
+  
+  public double getAngle(vector reference){
+    return toPolar(reference.x,reference.y,x,y)[1]
+  }
+  
+  public vector get(){
+    return this
+  }
+  
+  public void normalize(){
+    double mod = getMod();
+    if(mod > 0){
+    	x /= mod;
+    	y /= mod;
+    }
+  }
+  
+  public void limit(double max){
+   	double mod = getMod();
+    if(mod > max){
+      this.normalize();
+      this.mult(max);
+    }
+  }
+  
+  public void round(int digits){
+    x = roundTo(x,digits);
+    y = roundTo(y,digits);
+  }
+  
+  public void show(){
+    println(x + " " + y + " " + getMod());
+  }
+}
+
+vector copyVector(vector v){
+  return new vector(v.x,v.y)
+}
+
+vector addVectors(vector v, vector u){
+  return new vector(v.x+u.x,v.y+u.y);
+}
+
+vector susVectors(vector v, vector u){
+  return new vector(v.x-u.x,v.y-u.y);
+}
+
+vector multVector(vector v, double escalar){
+  return new vector(v.x*escalar,v.y*escalar);
+}
+
+vector divVector(vector v, double escalar){
+  return new vector(v.x/escalar,v.y/escalar);
+}
+
+vector normalize(vector v){
+  double mod = v.getMod();
+  if(mod <= 1){
+    return new vector(0,0);
+  }
+  return new vector(v.x/mod,v.y/mod);
+}
+
+vector fromPolar(double angle, double mod){
+  double[] pos = toCartesian(mod,angle);
+  return new vector(pos[0],pos[1]);
+}
+
+class particle{
+  vector pos;
+  double ix;
+  double iy;
+  
+  vector vel;
+  vector acc;
+  double speed;
+  double angle;
+  double maxVX;
+  double maxVY;
+
+  int strWidth;
+  int type;
+  
+  double width;
+  double height;
+  
+  double[] sHsl;
+  double[] mHsl;
+  double[] eHsl;
+  double[] trueColor;
+  double[] tempHslStr = {0,0,0};
+  double[] hslStr = copyColor(tempHslStr);
+  
+  double alpha = 0.99;
+  double alphaStr = 0.99;
+  
+  boolean cosY = false;
+  boolean senX = false;
+  double ampY = 0.5;
+  double ampX = 0.5;
+  double speedY = 5;
+  double speedX = 5;
+  
+  double timer; 
+  int lifetime;
+  
+  int imgID;
+  
+  particle(double x, double y, double[] hsl, int type, int angle){
+    pos = new vector(x,y);
+    vel = fromPolar(angle,1);
+    this.angle = angle;
+    acc = new vector(0,0);
+    this.ix = x;
+    this.iy = y;
+
+    this.speed = 0;
+    
+    this.sHsl = copyColor(hsl);
+    this.mHsl = copyColor(hsl);
+    this.eHsl = copyColor(hsl);
+    this.trueColor = copyColor(hsl);
+    this.type = type;
+    
+    this.timer = 0;
+    this.lifetime = -1;
+  }
+  
+  public void update(){
+    timer++;
+		
+    double colorTimer = timer;
+    if(lifetime == -1){
+      colorTimer = 0;
+    }
+    trueColor = blend(sHsl,mHsl,eHsl,map2(colorTimer,0,lifetime,0,100));
+    
+    if(cosY){
+      pos.y += cos(aToRad(pos.x*ampY))*speedY;
+    }
+    if(senX){
+      pos.x += sin(aToRad(pos.y*ampX))*speedX;
+    }
+    
+    if(speed < 0){
+      speed = 0;
+    }
+    vel = fromPolar(angle,speed);
+    vel.add(acc);
+    pos.add(vel);
+    
+    acc.equal(0,0);
+
+    if(alpha <= 0){
+    	alpha = 0;
+    }
+    if(alphaStr <= 0){
+      alphaStr = 0;
+    }
+    if(alpha > 1){
+      alpha = 1;
+    }
+    if(alphaStr > 1){
+      alphaStr = 1;
+    }
+  }
+  
+  public void render(){
+    double rX = pos.x-width/2;
+    double rY = pos.y-height/2;
+    int[] rgb = fromHSLtoRGB(trueColor[0],trueColor[1],trueColor[2]);
+    int[] rgbStr  = fromHSLtoRGB(hslStr[0],hslStr[1],hslStr[2]);
+    
+    fill(rgb[0],rgb[1],rgb[2],alpha);
+    stroke(rgbStr[0],rgbStr[1],rgbStr[2],alphaStr);
+    
+    if(alpha <= 0){
+      noFill();
+    }
+    if(alphaStr <= 0){
+      noStroke();
+    }
+    switch(type){
+      case 0:
+      	noStroke();
+      	rect(pos.x-1/2,pos.y-1/2,1,1);
+      break
+      case 1:     	
+      	strokeWeight(strWidth);
+      	ellipse(pos.x,pos.y,width,height);
+      break
+      case 2:
+      	strokeWeight(strWidth);
+      	rect(rX,rY,width,height);
+      break
+      case 3:
+      break  
+    }
+    if(debugParticle){ 
+      stroke(generalColor2);
+    	line(pos.x,pos.y,pos.x+vel.x,pos.y+vel.y);
+    }
+    
+  }
+}
+
+class atractor{
+  vector pos;
+  double strength;
+  boolean atract;
+  atractor(double x, double y, double strength){
+    pos = new vector(x,y);
+    this.strength = strength;
+    atract = true;
+  }
+}
+
+class emmiter{ 
+  particle[] arr;
+  
+  double x;
+  double y;
+  double[] sHsl;
+  double[] mHsl;
+  double[] eHsl;
+  
+  int type;
+  String[] typeArr = {"Punto","Ellipse","Rect"};
+  int emmisorType;
+  String[] emmisorTypeArr = {"Punto","Rect","Ellipse","Anillo"};
+
+  int spawnRate = 1;
+  int spawnTimer = 0;
+  
+  int lifetime = -1;
+  int lifeTimer = 0;
+  boolean lifend;
+  
+  int maxParticles = 1000;
+  boolean burst = false;
+  boolean oneBurst = false;
+  boolean infLifetime = false;
+  boolean moveEmmisor = false;
+  
+  double width = 1;
+  double height = 1;
+  double arc = 1;
+  boolean eAspectRatio = false;
+  
+  boolean newBatch = false;
+  int parPerBatch = 1;
+  
+  double minpspeed = 1;
+  double maxpspeed = 1;
+  double minpangle = 0;
+  double maxpangle = 360;
+  double pangleIncrease = 0;
+  double pspeedIncrease = 0;
+  
+  boolean pcosY = false;
+  boolean psenX = false;
+  double pampY = 0.5;
+  double pampX = 0.5;
+  double pspeedY = 5;
+  double pspeedX = 5;
+  
+  double maxpwidth = 2;
+  double maxpheight = 2;
+  double minpwidth = 2;
+  double minpheight = 2;
+  double pwidthIncrease = 0;
+  double pheightIncrease = 0;
+  boolean aspectRatio = true;
+  
+  boolean hide = false;
+  
+  double[] tempHslStr = {0,0,0};
+  double[] phslStr = copyColor(tempHslStr);
+  int minpstrWidth = 1;
+  int maxpstrWidth = 1;
+  int pstrWidthIncrease = 0;
+  
+  double minpalpha = 1;
+  double maxpalpha = 1;
+  double palphaIncrease = 0;
+  
+  double minpalphaStr = 1;
+  double maxpalphaStr = 1;
+  double palphaStrIncrease = 0;
+  
+  int maxplifetime = 40;
+  int minplifetime = 40;
+  
+  emmiter deathEmmit;
+  emmiter[] deathArr;
+  int deathEmitLife = -1;
+  
+  atractor[] atractors;
+    
+  emmiter(double x, double y, double[] hsl, int type, int spawnRate, int emmisorType){
+    arr = new particle[0];
+    this.x = x;
+    this.y = y;
+    
+    this.sHsl = copyColor(hsl);
+    this.mHsl = copyColor(hsl);
+    this.eHsl = copyColor(hsl);
+    
+    this.type = type;
+    this.emmisorType = emmisorType;
+    
+    this.spawnRate = spawnRate;
+    
+    this.atractors = new atractor[0];
+    this.deathArr = new emmiter[0];
+  }
+  
+  public void pushDeath(emmiter newEmmiter){
+    emmiter[] aux = deathArr;
+    deathArr = new emmiter[aux.length+1];
+    for(int i = 0; i < aux.length; i++){
+      deathArr[i] = aux[i];
+    }
+    deathArr[aux.length] = newEmmiter;
+  }
+  
+  public void delDeath(int index){
+    emmiter[] aux = deathArr;
+    deathArr = new emmiter[aux.length-1];
+    int n;
+    for(int i = 0; i < aux.length; i++){
+      if(i != index){
+      	deathArr[n] = aux[i];  
+        n++;
+      }     
+    }
+  }
+  
+  public void update(){
+    if(!burst){
+      spawnTimer++;
+    }
+    lifeTimer++;
+    
+    if(eAspectRatio){
+      height = width;
+    }
+    
+    if(arr.length > maxParticles){
+      this.del(0);
+    }
+    
+    double offset = 4;
+    for(int i = 0; i < arr.length; i++){
+      if((arr[i].timer > arr[i].lifetime && arr[i].lifetime != -1) || arr[i].width <= 0 || arr[i].height <= 0){
+        if(deathEmitLife != -1){ 
+          emmiter a = create(deathEmmit);
+          a.x = arr[i].pos.x;
+          a.y = arr[i].pos.y;        
+          a.lifetime = deathEmitLife;
+          this.pushDeath(a);
+        }
+        this.del(i);
+        
+        i = 0;
+      }
+    }
+    for(int i = 0; i < deathArr.length; i++){
+      if(deathArr[i].lifeTimer > deathArr[i].lifetime){
+        this.delDeath(i);
+      }
+    }
+    
+    if(deathEmitLife != 1){ 
+      for(int i = 0; i < deathArr.length; i++){
+        deathArr[i].update();
+      }
+    }
+    
+    for(int i = 0; i < arr.length; i++){
+      for(int j = 0; j < atractors.length; j++){
+
+        int angle = round(radToA(atan((atractors[j].pos.y - arr[i].pos.y)/(arr[i].pos.x - atractors[j].pos.x))));
+        if(arr[i].pos.x <= atractors[j].pos.x){
+          angle += 180;
+        }else if(arr[i].pos.y > atractors[j].pos.y){
+          angle += 360;
+        }
+        angle += 180;
+        vector force = fromPolar(angle,atractors[j].strength);
+        if(atractors[j].atract){
+          arr[i].acc.add(force);
+        }else{
+          arr[i].acc.sus(force);
+        }
+        
+      }
+      if(infLifetime){
+        arr[i].lifetime = -1;
+      }
+      arr[i].alpha += palphaIncrease;
+      arr[i].alphaStr += palphaStrIncrease;
+      
+      if(aspectRatio){
+      	arr[i].width += pwidthIncrease;
+        arr[i].height += pwidthIncrease;
+      }else{
+        arr[i].width += pwidthIncrease;
+      	arr[i].height += pheightIncrease;
+      }
+
+      arr[i].strWidth += pstrWidthIncrease;
+      
+      arr[i].angle += pangleIncrease;
+      arr[i].speed += pspeedIncrease;
+      arr[i].update();
+      
+    }
+    
+    if(lifeTimer > lifetime && lifetime != -1){
+      lifend = true;
+    }
+    
+    if(burst){
+      if(mousePressed && inBounds()){
+        if(oneBurst){
+          mousePressed = false;
+        }
+        spawnTimer = spawnRate+1;
+      }
+    }
+    
+    if(spawnTimer > spawnRate){
+      spawnTimer = 0;
+      newBatch = true;
+    }
+    
+    //genera nueva particula
+    if(newBatch){
+      for(int i = 0; i < parPerBatch; i++){ 
+        double px = x;
+        double py = y;
+        double[] psHsl = sHsl;
+        double[] pmHsl = mHsl;
+        double[] peHsl = eHsl;
+        int ptype = type;
+
+        if(emmisorType == 1){
+          px = x + random(-width/2,width/2); 
+          py = y + random(-height/2,height/2); 
+          /*for(int j = 0; j < atractors.length; j++){
+            do{
+              px = x + random(-width/2,width/2); 
+          		py = y + random(-height/2,height/2); 
+            }while(D(px,py,atractors[j].pos.x,atractors[j].pos.y) < offset);
+          }*/
+        }
+
+        if(emmisorType == 2){
+          /*if(atractors.length > 1){
+            for(int j = 0; j < atractors.length; j++){
+              do{
+                px = x + random(-width/2,width/2); 
+                py = y + random(-height/2,height/2); 
+              }while(D(px,py,x,y) > width/2 && D(px,py,atractors[j].pos.x,atractors[j].pos.y) < offset);
+          	}
+          }else{*/
+            do{
+              px = x + random(-width/2,width/2); 
+              py = y + random(-height/2,height/2); 
+            }while(!intersectEP(px,py,x,y,width,height));
+          //}
+        }
+        
+        if(emmisorType == 3){      
+          if(width/2 < arc || height/2 < arc){
+            do{
+              px = x + random(-width/2,width/2); 
+              py = y + random(-height/2,height/2); 
+            }while(!intersectEP(px,py,x,y,width,height));
+          }else{
+            do{
+              px = x + random(-width/2,width/2); 
+              py = y + random(-height/2,height/2); 
+            }while(!intersectArc(px,py,x,y,width,height,arc));
+          }
+        	
+        }
+
+        particle newParticle = new particle(px,py,psHsl,ptype,round(random(minpangle,maxpangle)));
+        newParticle.mHsl = pmHsl;
+        newParticle.eHsl = peHsl;
+        
+        newParticle.cosY = pcosY;
+        newParticle.senX = psenX;
+        newParticle.ampY = pampY;
+        newParticle.ampX = pampX;
+        newParticle.speedY = pspeedY;
+        newParticle.speedX = pspeedX;
+        newParticle.speed = random(minpspeed,maxpspeed);
+        newParticle.width = random(minpwidth,maxpwidth);
+        newParticle.height = random(minpheight,maxpheight);
+        
+        if(aspectRatio){
+          newParticle.height = newParticle.width;
+        }
+        newParticle.hslStr = copyColor(phslStr);
+        newParticle.strWidth = round(random(minpstrWidth,maxpstrWidth));
+        newParticle.alpha = random(minpalpha,maxpalpha);
+        newParticle.alphaStr = random(minpalphaStr,maxpalphaStr);
+        newParticle.lifetime = round(random(minplifetime,maxplifetime));
+
+        if(arr.length < maxParticles && !lifend){
+          this.push(newParticle);
+        }
+
+      }
+			newBatch = false;
+    }
+    //hasta aqui
+    
+  }
+  
+  public void render(){
+    if(showAtractors){
+      for(int i = 0; i < atractors.length; i++){
+        if(atractors[i].atract){
+          fill(0,255,0);
+          stroke(0,255,0);
+        }else{
+          fill(255,0,0);
+          stroke(255,0,0);
+        }
+        ellipse(atractors[i].pos.x,atractors[i].pos.y,5,5);
+    	}
+    }
+    for(int i = 0; i < arr.length; i++){
+      arr[i].render(); 
+    }
+    if(deathEmitLife != -1){ 
+      for(int i = 0; i < deathArr.length; i++){
+        deathArr[i].render();
+      }
+    }
+  }
+  
+  public void push(particle newParticle){
+    particle[] aux = arr;
+    arr = new particle[aux.length+1];
+    for(int i = 0; i < aux.length; i++){
+      arr[i] = aux[i];
+    }
+    arr[aux.length] = newParticle;
+  }
+  
+  public void del(int index){
+    particle[] aux = arr;
+    arr = new particle[aux.length-1];
+    int n;
+    for(int i = 0; i < aux.length; i++){
+      if(i != index){
+      	arr[n] = aux[i];  
+        n++;
+      }     
+    }
+  }
+  
+  public void pop(){
+    particle[] aux = arr;
+    arr = new particle[aux.length-1];
+    for(int i = 0; i < arr.length; i++){
+      arr[i] = aux[i];
+    }
+  }
+}
+
+emmiter create(emmiter a){
+  emmiter b = new emmiter(a.x,a.y,a.sHsl,a.type,a.spawnRate,a.emmisorType);
+  b.mHsl = a.mHsl;
+  b.eHsl = a.eHsl;
+  b.parPerBatch = a.parPerBatch;
+  b.maxParticles = a.maxParticles;
+  b.burst = a.burst;
+  b.oneBurst = a.oneBurst;
+  b.infLifetime = a.infLifetime;
+  b.moveEmmisor = a.moveEmmisor;
+  
+  b.width = a.width;
+  b.height = a.height;
+  b.arc = a.arc;
+  b.eAspectRatio = a.eAspectRatio;
+  
+  b.hide = a.hide;
+  b.minpspeed = a.minpspeed;
+  b.maxpspeed = a.maxpspeed;
+  b.minpangle = a.minpangle;
+  b.maxpangle = a.maxpangle;
+  b.pangleIncrease = a.pangleIncrease;
+  b.pspeedIncrease = a.pspeedIncrease;
+  
+  b.pcosY = a.pcosY;
+  b.psenX = a.psenX;
+  b.pampY = a.pampY;
+  b.pampX = a.pampX;
+  b.pspeedY = a.pspeedY;
+  b.pspeedX = a.pspeedX;
+  
+  b.maxpwidth = a.maxpwidth;
+  b.maxpheight = a.maxpheight;
+  b.minpwidth = a.minpwidth;
+  b.minpheight = a.minpheight;
+  b.pwidthIncrease = a.pwidthIncrease;
+  b.pheightIncrease = a.pheightIncrease;
+  b.aspectRatio = a.aspectRatio;
+  
+  b.phslStr = a.phslStr;
+  b.minpstrWidth = a.minpstrWidth;
+  b.maxpstrWidth = a.maxpstrWidth;
+  b.pstrWidthIncrease = a.pstrWidthIncrease;
+  
+  b.minpalpha = a.minpalpha;
+  b.maxpalpha = a.maxpalpha;
+  b.palphaIncrease = a.palphaIncrease;
+  
+  b.minpalphaStr = a.minpalphaStr;
+  b.maxpalphaStr = a.maxpalphaStr;
+  b.palphaStrIncrease = a.palphaStrIncrease; 
+  
+  b.maxplifetime = a.maxplifetime;
+  b.minplifetime = a.minplifetime;
+  
+  b.deathEmmit = a.deathEmmit;
+  b.deathEmitLife = a.deathEmitLife;
+  b.atractors = a.atractors;
+  return b;
+}
+
+class particleSystem{
+  emmiter[] emitters;
+  int curEmitter;
+  particleSystem(){
+    curEmitter = 0;
+    emitters = new emmiter[0];
+  }
+  
+  public void render(){
+    for(int i = 0; i < emitters.length; i++){
+      if(!emitters[i].hide){
+        emitters[i].render();  
+      }            
+    }
+  }
+  
+  public void update(){
+    for(int i = 0; i < emitters.length; i++){
+      if(!emitters[i].hide){
+      	emitters[i].update();
+      }
+    }
+  }
+  
+  public void add(emmiter newEmitter){
+    emmiter[] aux = emitters;
+    emitters = new emmiter[aux.length+1];
+    for(int i = 0; i < aux.length; i++){
+      emitters[i] = aux[i];
+    }
+    emitters[aux.length] = newEmitter;
+  }
+  
+  public void del(int index){
+    emmiter[] aux = emitters;
+    emitters = new emmiter[aux.length-1];
+    int n;
+    for(int i = 0; i < aux.length; i++){
+      if(i != index){
+      	emitters[n] = aux[i];  
+        n++;
+      }     
+    }
+  }
+}
+
+double[] c1 = {47,152,209};
+double[] c2 = {0,0,0};
+particle test = new particle(160,160,c1,2,120);
+test.width = 50;
+test.height = 50;
+test.hslStr = c2;
+test.strWidth = 1;
+test.alpha = 1;
+test.alphaStr = 1;
+test.imgID = 0;
+
+particle test2 = new particle(160,160,c2,0,120);
+
+//x, y, color, tipo de particula, spawnRate, emmisorType
+emmiter test3 = new emmiter(0,0,c1,2,0,1);
+test3.parPerBatch = 5;
+test3.width = 320;
+test3.height = 10;
+test3.minpwidth = 1;
+test3.maxpwidth = 1;
+test3.phslStr = c1;
+test3.minpheight = 2;
+test3.maxpheight = 10;
+test3.aspectRatio = false;
+test3.minplifetime = 200;
+test3.maxplifetime = 200;
+test3.palphaIncrease = -0.006;
+test3.palphaStrIncrease = -0.006;
+test3.pheightIncrease = 0;
+test3.pwidthIncrease = 0;
+test3.minpangle = 270;
+test3.maxpangle = 270;
+test3.pangleIncrease = 0.1;
+test3.minpspeed = 2;
+test3.maxpspeed = 2;
+
+double[] c4 = {114,114,114};
+double[] c3 = {207,207,207};
+
+emmiter test4 = new emmiter(160,160,c3,1,0,0);
+test4.parPerBatch = 3;
+test4.width = 40;
+test4.height = 40;
+test4.minpspeed = 2;
+test4.maxpspeed = 6;
+test4.minpangle = 60;
+test4.maxpangle = 120;
+test4.pangleIncrease = -1;
+test4.minpwidth = 20;
+test4.maxpwidth = 60;
+test4.minpheight = 20;
+test4.maxpheight = 60;
+test4.aspectRatio = true;
+test4.minpstrWidth = 1;
+test4.maxpstrWidth = 1;
+test4.phslStr = c4;
+test4.minplifetime = 40;
+test4.maxplifetime = 80;
+
+test4.palphaIncrease = -0.02;
+test4.minpalphaStr = 0.01;
+test4.maxpalphaStr = 0.01;
+
+double[] c5 = {47,195,108};
+
+emmiter test5 = new emmiter(160,160,c5,1,0,0);
+test5.parPerBatch = 10;
+test5.width = 40;
+test5.height = 40;
+test5.minpspeed = 2;
+test5.maxpspeed = 6;
+test5.minpangle = 0;
+test5.maxpangle = 320;
+test5.pangleIncrease = 0;
+test5.minpwidth = 1;
+test5.maxpwidth = 3;
+test5.minpheight = 1;
+test5.maxpheight = 3;
+test5.aspectRatio = true;
+test5.minpstrWidth = 1;
+test5.maxpstrWidth = 1;
+test5.phslStr = c4;
+test5.minplifetime = 20;
+test5.maxplifetime = 20;
+test5.minpalpha = 0.01;
+test5.maxpalpha = 0.01;
+test5.pwidthIncrease = 0.5;
+test5.pheightIncrease = 0.5;
+test5.palphaIncrease = 0.02;
+test5.minpalphaStr = 0.01;
+test5.maxpalphaStr = 0.01;
+
+test5.deathEmitLife = 10;
+test5.deathEmmit = test4;
+
+double[] c6 = {196,1,0.5};
+double[] c7 = {217,1,0.53};
+double[] c8 = {240,1,0.34};
+
+emmiter test6 = new emmiter(160,160,c6,1,0,3);
+test6.mHsl = c7;
+test6.eHsl = c8;
+test6.parPerBatch = 5;
+test6.width = 300;
+test6.height = 300;
+test6.arc = 10;
+test6.minpspeed = 1;
+test6.maxpspeed = 4;
+test6.minpangle = 0;
+test6.maxpangle = 360;
+test6.pangleIncrease = 0;
+test6.minpwidth = 8;
+test6.maxpwidth = 12;
+test6.minpheight = 1;
+test6.maxpheight = 3;
+test6.aspectRatio = true;
+test6.minpstrWidth = 1;
+test6.maxpstrWidth = 1;
+test6.phslStr = c4;
+test6.minplifetime = 40;
+test6.maxplifetime = 80;
+test6.minpalpha = 1;
+test6.maxpalpha = 1;
+test6.palphaIncrease = 0;
+test6.minpalphaStr = 0.01;
+test6.maxpalphaStr = 0.01;
+test6.pwidthIncrease = -0.1;
+test6.pheightIncrease = -0.1;
+test6.atractors = new atractor[1];
+test6.atractors[0] = new atractor(160,160,5);
+//test6.atractors[1] = new atractor(0,0,0.1);
+//test6.atractors[2] = new atractor(320,320,0.05);
+
+emmiter test7 = new emmiter(160,160,c6,1,0,0);
+test7.parPerBatch = 1;
+test7.width = 0;
+test7.height = 0;
+test7.minpspeed = 0;
+test7.maxpspeed = 0;
+test7.minpangle = 0;
+test7.maxpangle = 360;
+test7.pangleIncrease = 0;
+test7.minpwidth = 60;
+test7.maxpwidth = 120;
+test7.minpheight = 1;
+test7.maxpheight = 3;
+test7.aspectRatio = true;
+test7.minpstrWidth = 1;
+test7.maxpstrWidth = 1;
+test7.phslStr = c4;
+test7.minplifetime = 40;
+test7.maxplifetime = 80;
+test7.minpalpha = 0.1;
+test7.maxpalpha = 1;
+test7.minpalphaStr = 0.01;
+test7.maxpalphaStr = 0.01;
+test7.pwidthIncrease = -0.1;
+test7.pheightIncrease = -0.1;
+
+
+double[] c9 = {0,0,0.4}; 
+double[] c10 = {0,0,0.6}; 
+double[] c11 = {0,0,0.8}; 
+double[] c29 = {0,0,0};
+//x, y, color, tipo de particula, spawnRate, emmisorType
+emmiter test8 = new emmiter(160,200,c9,1,0,2);
+test8.mHsl = c10;
+test8.eHsl = c11;
+test8.parPerBatch = 5;
+test8.width = 20;
+test8.height = 20;
+test8.minpspeed = 1;
+test8.maxpspeed = 4;
+test8.minpangle = 80;
+test8.maxpangle = 100;
+test8.pangleIncrease = -0.5;
+test8.minpwidth = 20;
+test8.maxpwidth = 50;
+test8.minpheight = 1;
+test8.maxpheight = 3;
+test8.aspectRatio = true;
+test8.minpstrWidth = 1;
+test8.maxpstrWidth = 1;
+test8.phslStr = c29;
+test8.minplifetime = 40;
+test8.maxplifetime = 60;
+test8.minpalpha = 1;
+test8.maxpalpha = 1;
+test8.palphaIncrease = -0.02;
+test8.minpalphaStr = 0.000001;
+test8.maxpalphaStr = 0.000001;
+test8.pwidthIncrease = -0.3;
+test8.pheightIncrease = -0.3;
+
+double[] c12 = {16,0.89,0.48}; 
+double[] c13 = {32,0.95,0.57}; 
+double[] c14 = {84,0.87,0.66}; 
+emmiter test9 = new emmiter(0,0,c12,1,0,1);
+test9.mHsl = c13;
+test9.eHsl = c14;
+test9.parPerBatch = 2;
+test9.width = 320;
+test9.height = 320;
+test9.minpspeed = 0.1;
+test9.maxpspeed = 0.5;
+test9.minpangle = 0;
+test9.maxpangle = 360;
+test9.pangleIncrease = 0;
+test9.minpwidth = 15;
+test9.maxpwidth = 30;
+test9.minpheight = 1;
+test9.maxpheight = 3;
+test9.aspectRatio = true;
+test9.minpstrWidth = 1;
+test9.maxpstrWidth = 1;
+test9.phslStr = c4;
+test9.minplifetime = 80;
+test9.maxplifetime = 120;
+test9.minpalpha = 0.3;
+test9.maxpalpha = 0.9;
+test9.palphaIncrease = 0;
+test9.minpalphaStr = 0.01;
+test9.maxpalphaStr = 0.01;
+test9.pwidthIncrease = -0.01;
+test9.pheightIncrease = -0.01;
+
+emmiter drop = new emmiter(10,10,c6,2,5,0);
+drop.mHsl = c7;
+drop.eHsl = c8;
+drop.parPerBatch = 2;
+drop.width = 300;
+drop.height = 300;
+drop.minpspeed = 1;
+drop.maxpspeed = 2;
+drop.minpangle = 60;
+drop.maxpangle = 120;
+drop.pangleIncrease = 0;
+drop.minpwidth = 1;
+drop.maxpwidth = 4;
+drop.minpheight = 2;
+drop.maxpheight = 7;
+drop.aspectRatio = true;
+drop.minpstrWidth = 1;
+drop.maxpstrWidth = 1;
+drop.phslStr = c4;
+drop.minplifetime = 20;
+drop.maxplifetime = 40;
+drop.minpalpha = 1;
+drop.maxpalpha = 1;
+drop.palphaIncrease = 0;
+drop.minpalphaStr = 0.01;
+drop.maxpalphaStr = 0.01;
+drop.pwidthIncrease = -0.1;
+drop.pheightIncrease = -0.1;
+
+emmiter test10 = new emmiter(0,0,c6,2,0,1);
+test10.mHsl = c7;
+test10.eHsl = c8;
+test10.parPerBatch = 5;
+test10.width = 320;
+test10.height = 20;
+test10.minpspeed = 3.5;
+test10.maxpspeed = 4;
+test10.minpangle = 267;
+test10.maxpangle = 270;
+test10.pangleIncrease = 0.2;
+test10.minpwidth = 1;
+test10.maxpwidth = 1;
+test10.minpheight = 8;
+test10.maxpheight = 12;
+test10.aspectRatio = false;
+test10.minpstrWidth = 1;
+test10.maxpstrWidth = 1;
+test10.phslStr = c4;
+test10.minplifetime = 70;
+test10.maxplifetime = 80;
+test10.minpalpha = 1;
+test10.maxpalpha = 1;
+test10.palphaIncrease = 0;
+test10.minpalphaStr = 0.01;
+test10.maxpalphaStr = 0.01;
+test10.pheightIncrease = -0.05;
+test10.deathEmitLife = 10;
+test10.deathEmmit = drop;
+
+double[] c15 = {55,0.75,0.77};
+double[] c16 = {55,0.39,0.69};
+double[] c17 = {47,0.28,0.45};
+emmiter test11 = new emmiter(0,0,c15,1,0,1);
+test11.mHsl = c16;
+test11.eHsl = c17;
+test11.parPerBatch = 15;
+test11.width = 320;
+test11.height = 20;
+test11.minpspeed = 3;
+test11.maxpspeed = 7;
+test11.minpangle = 245;
+test11.maxpangle = 280;
+test11.pangleIncrease = -0.4;
+test11.minpwidth = 4;
+test11.maxpwidth = 10;
+test11.minpheight = 1;
+test11.maxpheight = 3;
+test11.aspectRatio = true;
+test11.minpstrWidth = 1;
+test11.maxpstrWidth = 1;
+test11.phslStr = c4;
+test11.minplifetime = 60;
+test11.maxplifetime = 90;
+test11.minpalpha = 0.7;
+test11.maxpalpha = 1;
+test11.palphaIncrease = 0;
+test11.minpalphaStr = 0.01;
+test11.maxpalphaStr = 0.01;
+test11.pwidthIncrease = -0.07;
+test11.pheightIncrease = -0.07;
+
+double[] c18 = {42,0.90,0.52}; 
+double[] c19 = {15,0.81,0.50}; 
+double[] c20 = {28,0.15,0.21}; 
+emmiter test12 = new emmiter(160,220,c18,1,0,0);
+test12.mHsl = c19;
+test12.eHsl = c20;
+test12.parPerBatch = 5;
+test12.width = 300;
+test12.height = 300;
+test12.minpspeed = 1;
+test12.maxpspeed = 4;
+test12.minpangle = 70;
+test12.maxpangle = 110;
+test12.pangleIncrease = 0.1;
+test12.minpwidth = 10;
+test12.maxpwidth = 50;
+test12.minpheight = 1;
+test12.maxpheight = 3;
+test12.aspectRatio = true;
+test12.minpstrWidth = 1;
+test12.maxpstrWidth = 1;
+test12.phslStr = c4;
+test12.minplifetime = 40;
+test12.maxplifetime = 70;
+test12.minpalpha = 1;
+test12.maxpalpha = 1;
+test12.palphaIncrease = -0.01;
+test12.minpalphaStr = 0.01;
+test12.maxpalphaStr = 0.01;
+test12.pwidthIncrease = 0.1;
+test12.pheightIncrease = 0.1;
+
+double[] c21 = {3,0.97,0.51};
+double[] c22 = {3,0.90,0.39};
+double[] c23 = {3,0.83,0.22};
+emmiter test13 = new emmiter(160,160,c21,1,10,0);
+test13.mHsl = c22;
+test13.eHsl = c23;
+test13.parPerBatch = 60;
+test13.width = 300;
+test13.height = 300;
+test13.minpspeed = 1;
+test13.maxpspeed = 3;
+test13.pspeedIncrease = -0.05;
+test13.minpangle = 0;
+test13.maxpangle = 360;
+test13.pangleIncrease = 0;
+test13.minpwidth = 15;
+test13.maxpwidth = 30;
+test13.minpheight = 1;
+test13.maxpheight = 3;
+test13.aspectRatio = true;
+test13.minpstrWidth = 1;
+test13.maxpstrWidth = 1;
+test13.phslStr = c4;
+test13.minplifetime = 20;
+test13.maxplifetime = 40;
+test13.minpalpha = 1;
+test13.maxpalpha = 1;
+test13.palphaIncrease = 0;
+test13.minpalphaStr = 0.01;
+test13.maxpalphaStr = 0.01;
+test13.pwidthIncrease = -0.3;
+test13.pheightIncrease = -0.3;
+test13.atractors = new atractor[1];
+test13.atractors[0] = new atractor(160,320,0.05);
+
+double[] c24 = {196,0.1,0.9};
+double[] c25 = {196,0.2,0.8};
+double[] c26 = {196,0.3,0.7};
+emmiter test14 = new emmiter(0,0,c24,1,0,1);
+test14.mHsl = c25;
+test14.eHsl = c26;
+test14.parPerBatch = 3;
+test14.width = 197;
+test14.height = 20;
+test14.minpspeed = 1;
+test14.maxpspeed = 4;
+test14.minpangle = 267;
+test14.maxpangle = 273;
+test14.pangleIncrease = 0;
+test14.minpwidth = 1;
+test14.maxpwidth = 9;
+test14.minpheight = 1;
+test14.maxpheight = 3;
+test14.aspectRatio = true;
+test14.minpstrWidth = 1;
+test14.maxpstrWidth = 1;
+test14.phslStr = c4;
+test14.minplifetime = 120;
+test14.maxplifetime = 160;
+test14.minpalpha = 1;
+test14.maxpalpha = 1;
+test14.palphaIncrease = -0.007;
+test14.minpalphaStr = 0.01;
+test14.maxpalphaStr = 0.01;
+test14.pwidthIncrease = -0.01;
+test14.pheightIncrease = -0.01;
+test14.psenX = true;
+test14.pampX = 0.1;
+test14.pspeedX = 0.4;
+
+emmiter test15 = new emmiter(160,160,c6,1,0,2); 
+test15.mHsl = c7;
+test15.eHsl = c8;
+test15.parPerBatch = 5;
+test15.width = 10;
+test15.height = 10;
+test15.minpspeed = 1;
+test15.maxpspeed = 2.5;
+test15.pspeedIncrease = -0.2;
+test15.minpangle = 0;
+test15.maxpangle = 360;
+test15.pangleIncrease = 0;
+test15.minpwidth = 8;
+test15.maxpwidth = 12;
+test15.minpheight = 1;
+test15.maxpheight = 3;
+test15.aspectRatio = true;
+test15.minpstrWidth = 1;
+test15.maxpstrWidth = 1;
+test15.phslStr = c4;
+test15.minplifetime = 80;
+test15.maxplifetime = 120;
+test15.minpalpha = 1;
+test15.maxpalpha = 1;
+test15.palphaIncrease = 0;
+test15.minpalphaStr = 0.01;
+test15.maxpalphaStr = 0.01;
+test15.pwidthIncrease = -0.1;
+test15.pheightIncrease = -0.1;
+test15.moveEmmisor = true;
+
+double[] sColor1 = {0,1,0.4666666666666667};
+double[] mColor1 = {186,1,0.5};
+double[] eColor1 = {360,0.95,0.45};
+double[] strColor1 = {196,1,0.5};
+emmiter n1 = new emmiter(133,62,sColor1,1,0,0);
+n1.sHsl = sColor1;
+n1.mHsl = mColor1;
+n1.eHsl = eColor1;
+n1.phslStr = strColor1;
+n1.maxParticles = 9250;
+n1.parPerBatch = 10;
+n1.burst = true;
+n1.oneBurst = false;
+n1.width = 1;
+n1.height = 1;
+n1.minpwidth = 2.5;
+n1.maxpwidth = 7.5;
+n1.pwidthIncrease = -0.02;
+n1.minpheight = 2;
+n1.maxpheight = 2;
+n1.pheightIncrease = 0;
+n1.minpstrWidth = 1;
+n1.maxpstrWidth = 1;
+n1.pstrWidthIncrease = 0;
+n1.aspectRatio = true;
+n1.minplifetime = 60;
+n1.maxplifetime = 60;
+n1.infLifetime = false;
+n1.minpangle = 0;
+n1.maxpangle = 360;
+n1.pangleIncrease = -0.25;
+n1.minpspeed = 1;
+n1.maxpspeed = 2.5;
+n1.pspeedIncrease = 0;
+n1.psenX = true;
+n1.pampX = 3;
+n1.pspeedX = 5;
+n1.pcosY = true;
+n1.pampY = 3;
+n1.pspeedY = 5;
+n1.minpalpha = 1;
+n1.maxpalpha = 1;
+n1.palphaIncrease = -0.015;
+n1.minpalphaStr = 0;
+n1.maxpalphaStr = 0;
+n1.palphaStrIncrease = 0;
+n1.infLifetime = false;
+n1.moveEmmisor = true;
+n1.atractors = new atractor[0];
+
+particleSystem p = new particleSystem();
+p.add(n1);
+
+double[] sColor1_2 = {196,1,0.9833333333333333};
+double[] mColor1_2 = {196,1,1};
+double[] eColor1_2 = {196,1,1};
+double[] strColor1_2 = {196,1,1};
+emmiter n1_2 = new emmiter(160,320,sColor1_2,1,20,1);
+n1_2.sHsl = sColor1_2;
+n1_2.mHsl = mColor1_2;
+n1_2.eHsl = eColor1_2;
+n1_2.phslStr = strColor1_2;
+n1_2.maxParticles = 1000;
+n1_2.parPerBatch = 1;
+n1_2.burst = false;
+n1_2.oneBurst = false;
+n1_2.width = 320;
+n1_2.height = 1;
+n1_2.minpwidth = 5;
+n1_2.maxpwidth = 5;
+n1_2.pwidthIncrease = 0;
+n1_2.minpheight = 2;
+n1_2.maxpheight = 2;
+n1_2.pheightIncrease = 0;
+n1_2.minpstrWidth = 1;
+n1_2.maxpstrWidth = 1;
+n1_2.pstrWidthIncrease = 0;
+n1_2.aspectRatio = true;
+n1_2.minplifetime = 40;
+n1_2.maxplifetime = 40;
+n1_2.infLifetime = false;
+n1_2.minpangle = 90;
+n1_2.maxpangle = 90;
+n1_2.pangleIncrease = 0;
+n1_2.minpspeed = 6;
+n1_2.maxpspeed = 7.5;
+n1_2.pspeedIncrease = -0.1;
+n1_2.psenX = false;
+n1_2.pampX = 0.5;
+n1_2.pspeedX = 5;
+n1_2.pcosY = false;
+n1_2.pampY = 0.5;
+n1_2.pspeedY = 5;
+n1_2.minpalpha = 1;
+n1_2.maxpalpha = 1;
+n1_2.palphaIncrease = 0;
+n1_2.minpalphaStr = 1;
+n1_2.maxpalphaStr = 1;
+n1_2.palphaStrIncrease = 0;
+n1_2.infLifetime = false;
+n1_2.moveEmmisor = false;
+n1_2.deathEmitLife = 60;
+n1_2.atractors = new atractor[0];
+
+double[] sColor2_2 = {60,1,0.5};
+double[] mColor2_2 = {126,1,0.5};
+double[] eColor2_2 = {196,1,0.5};
+double[] strColor2_2 = {196,1,0.5};
+emmiter n2_2 = new emmiter(160,100,sColor2_2,1,1,0);
+n2_2.sHsl = sColor2_2;
+n2_2.mHsl = mColor2_2;
+n2_2.eHsl = eColor2_2;
+n2_2.phslStr = strColor2_2;
+n2_2.maxParticles = 1000;
+n2_2.parPerBatch = 15;
+n2_2.burst = false;
+n2_2.oneBurst = false;
+n2_2.width = 1;
+n2_2.height = 1;
+n2_2.minpwidth = 1;
+n2_2.maxpwidth = 2.5;
+n2_2.pwidthIncrease = 0;
+n2_2.minpheight = 2;
+n2_2.maxpheight = 2;
+n2_2.pheightIncrease = 0;
+n2_2.minpstrWidth = 1;
+n2_2.maxpstrWidth = 1;
+n2_2.pstrWidthIncrease = 0;
+n2_2.aspectRatio = true;
+n2_2.minplifetime = 40;
+n2_2.maxplifetime = 40;
+n2_2.infLifetime = false;
+n2_2.minpangle = 0;
+n2_2.maxpangle = 360;
+n2_2.pangleIncrease = 1;
+n2_2.minpspeed = 0.5;
+n2_2.maxpspeed = 1;
+n2_2.pspeedIncrease = 0;
+n2_2.psenX = false;
+n2_2.pampX = 0.5;
+n2_2.pspeedX = 5;
+n2_2.pcosY = false;
+n2_2.pampY = 0.5;
+n2_2.pspeedY = 5;
+n2_2.minpalpha = 1;
+n2_2.maxpalpha = 1;
+n2_2.palphaIncrease = 0;
+n2_2.minpalphaStr = 0;
+n2_2.maxpalphaStr = 0;
+n2_2.palphaStrIncrease = 0;
+n2_2.infLifetime = false;
+n2_2.moveEmmisor = false;
+n2_2.deathEmmit = n1;
+n2_2.deathEmitLife = -1;
+n2_2.atractors = new atractor[0];
+
+n1_2.deathEmmit = n2_2;
+ 
+particleSystem p_2 = new particleSystem();
+p_2.add(n1_2);
+p_2.add(n2_2);
+
+double[] sColor1_3= {196,1,0.5};
+double[] mColor1_3 = {234,1,0.5};
+double[] eColor1_3 = {276,1,0.5};
+double[] strColor1_3 = {196,1,0.5};
+emmiter n1_3 = new emmiter(160,160,sColor1_3,1,0,0);
+n1_3.sHsl = sColor1_3;
+n1_3.mHsl = mColor1_3;
+n1_3.eHsl = eColor1_3;
+n1_3.phslStr = strColor1_3;
+n1_3.maxParticles = 1000;
+n1_3.parPerBatch = 6;
+n1_3.burst = false;
+n1_3.oneBurst = false;
+n1_3.width = 1;
+n1_3.height = 1;
+n1_3.minpwidth = 1;
+n1_3.maxpwidth = 5;
+n1_3.pwidthIncrease = 0;
+n1_3.minpheight = 2;
+n1_3.maxpheight = 2;
+n1_3.pheightIncrease = 0;
+n1_3.minpstrWidth = 1;
+n1_3.maxpstrWidth = 1;
+n1_3.pstrWidthIncrease = 0;
+n1_3.aspectRatio = true;
+n1_3.minplifetime = 40;
+n1_3.maxplifetime = 50;
+n1_3.infLifetime = false;
+n1_3.minpangle = 0;
+n1_3.maxpangle = 360;
+n1_3.pangleIncrease = 0;
+n1_3.minpspeed = 0.5;
+n1_3.maxpspeed = 2;
+n1_3.pspeedIncrease = 0;
+n1_3.psenX = false;
+n1_3.pampX = 0.5;
+n1_3.pspeedX = 5;
+n1_3.pcosY = false;
+n1_3.pampY = 0.5;
+n1_3.pspeedY = 5;
+n1_3.minpalpha = 1;
+n1_3.maxpalpha = 1;
+n1_3.palphaIncrease = -0.02;
+n1_3.minpalphaStr = 0;
+n1_3.maxpalphaStr = 0;
+n1_3.palphaStrIncrease = 0;
+n1_3.infLifetime = false;
+n1_3.moveEmmisor = true;
+n1_3.deathEmmit = n1_3;
+n1_3.deathEmitLife = -1;
+n1_3.atractors = new atractor[0];
+ 
+particleSystem p_3 = new particleSystem();
+p_3.add(n1_3);
+
+/*
+double[] sColor1 = {234,0.6166666666666667,0.38333333333333336};
+double[] mColor1 = {210,1,0.5};
+double[] eColor1 = {192,1,0.6833333333333333};
+double[] strColor1 = {196,1,0.5};
+emmiter n1 = new emmiter(160,1,sColor1,1,0,1);
+n1.sHsl = sColor1;
+n1.mHsl = mColor1;
+n1.eHsl = eColor1;
+n1.phslStr = strColor1;
+n1.maxParticles = 1000;
+n1.parPerBatch = 5;
+n1.burst = false;
+n1.oneBurst = false;
+n1.width = 320;
+n1.height = 1;
+n1.minpwidth = 1;
+n1.maxpwidth = 1;
+n1.pwidthIncrease = 0;
+n1.minpheight = 3;
+n1.maxpheight = 7;
+n1.pheightIncrease = 0.1;
+n1.minpstrWidth = 1;
+n1.maxpstrWidth = 1;
+n1.pstrWidthIncrease = 0;
+n1.aspectRatio = false;
+n1.minplifetime = 50;
+n1.maxplifetime = 50;
+n1.infLifetime = false;
+n1.minpangle = 260;
+n1.maxpangle = 280;
+n1.pangleIncrease = 0;
+n1.minpspeed = 4;
+n1.maxpspeed = 5;
+n1.pspeedIncrease = 0.05;
+n1.psenX = false;
+n1.pampX = 0.5;
+n1.pspeedX = 5;
+n1.pcosY = false;
+n1.pampY = 0.5;
+n1.pspeedY = 5; 
+n1.minpalpha = 1;
+n1.maxpalpha = 1; 
+n1.palphaIncrease = 0;
+n1.minpalphaStr = 0;
+n1.maxpalphaStr = 0;
+n1.palphaStrIncrease = 0;
+n1.infLifetime = false;
+n1.moveEmmisor = false;
+n1.deathEmmit = n2;
+n1.deathEmitLife = 10;
+n1.atractors = new atractor[0];
+ 
+double[] sColor2 = {196,1,0.5};
+double[] mColor2 = {196,1,0.5};
+double[] eColor2 = {196,1,0.5};
+double[] strColor2 = {196,1,0.5};
+emmiter n2 = new emmiter(160,100,sColor2,0,4,0);
+n2.sHsl = sColor2;
+n2.mHsl = mColor2;
+n2.eHsl = eColor2;
+n2.phslStr = strColor2;
+n2.maxParticles = 1000;
+n2.parPerBatch = 2;
+n2.burst = false;
+n2.oneBurst = false;
+n2.width = 1;
+n2.height = 1;
+n2.minpwidth = 2;
+n2.maxpwidth = 3;
+n2.pwidthIncrease = -0.03;
+n2.minpheight = 2;
+n2.maxpheight = 2;
+n2.pheightIncrease = 0;
+n2.minpstrWidth = 1;
+n2.maxpstrWidth = 1;
+n2.pstrWidthIncrease = 0;
+n2.aspectRatio = true;
+n2.minplifetime = 40;
+n2.maxplifetime = 40;
+n2.infLifetime = false;
+n2.minpangle = 45;
+n2.maxpangle = 135;
+n2.pangleIncrease = 0;
+n2.minpspeed = 1;
+n2.maxpspeed = 1;
+n2.pspeedIncrease = 0;
+n2.psenX = false;
+n2.pampX = 0.5;
+n2.pspeedX = 5;
+n2.pcosY = false;
+n2.pampY = 0.5;
+n2.pspeedY = 5;
+n2.minpalpha = 1;
+n2.maxpalpha = 1;
+n2.palphaIncrease = 0;
+n2.minpalphaStr = 1;
+n2.maxpalphaStr = 1;
+n2.palphaStrIncrease = 0;
+n2.infLifetime = false;
+n2.moveEmmisor = false;
+n2.deathEmmit = n2;
+n2.deathEmitLife = -1;
+n2.atractors = new atractor[0];
+ 
+particleSystem p = new particleSystem();
+p.add(n1);
+p.add(n2);
+*/
+
+particleSystem p2 = new particleSystem();
+p2.add(test6);
+
+particleSystem p3 = new particleSystem();
+p3.add(test15);
+
+particleSystem[] allParticleSystems = {p_3,p,p2,p3,p_2};
+
+particleSystem curParticleSystem = p_3;
+emmiter curEmmiter = n1_3;
+
+int enterNum(){
+  int num = -2;
+  if(keyPressed){
+    keyPressed = false;
+    switch(key){
+      case "0": num = 0; break
+      case "1": num = 1; break
+      case "2": num = 2; break
+      case "3": num = 3; break
+      case "4": num = 4; break
+      case "5": num = 5; break
+      case "6": num = 6; break
+      case "7": num = 7; break
+      case "8": num = 8; break
+      case "9": num = 9; break
+      case "Enter": num = -1; break
+      case ".": num = -3; break
+      case "-": num = -4; break
+    }
+  }
+  return num;
+}
+
+boolean searchChar(String a, char b){
+  boolean found = false;
+  char[] strArr = stringToCharArray(a);
+  for(int i = 0; i < strArr.length; i++){
+    if(strArr[i] == b){
+      found = true;
+    }
+  }
+  return found;
+}
+
+class sel{
+  int ID;
+  double x;
+  double y;
+  double width;
+  double height;
+  
+  double value;
+  double minValue;
+  double maxValue;
+  
+  double enteredNum;
+  int count = 10;
+  boolean decimal = false;
+  boolean negative = false;
+  
+  boolean boolValue;
+  
+  int dropValue;
+  double dropDownX;
+  String[] dropNames;
+  int dropStart = 0;
+  boolean dropped = false;
+  
+  String[] bigNames;
+  int bigValue;
+  boolean bigAdd = false;
+  boolean bigSus = false;
+  int bigSusIndex = 0;
+  int bigStart = 0;
+  
+  String[] simpleNames;
+  int simpleValue = 0;
+  int simpleStart = 0;
+  
+  double renderedHue = 0;
+  
+  boolean centered = false;
+  String tx = "";
+  int txSize = 8;
+  
+  String tooltip = "";
+  
+  sel(int ID,double x,double y,double width,double height){
+    this.ID = ID;
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;    
+    this.dropDownX = x+width-height;
+    
+    if(ID == 4){
+      this.minValue = 0;
+      this.maxValue = 360;
+    }else if(ID == 5){
+      this.minValue = 0;
+      this.maxValue = 1;
+    }else if(ID == 6){
+      this.minValue = 0;
+      this.maxValue = 1;
+    }
+  }
+  
+  public void renderText(){
+    textSize(txSize);
+    if(ID > 3){
+      fill(0);
+    }else{
+      fill(generalColor);
+    }
+    String renderedValue = roundTo(value,2)+"";
+    if(enteredNum > 0){
+      renderedValue = roundTo(enteredNum,2)+"";
+      if(decimal && !searchChar(renderedValue,'.')){
+      	renderedValue += ".";
+      }
+    }
+    double offset = 3;
+    
+    if(centered){
+      text(renderedValue,x+width/2-textWidth(renderedValue)/2,y+height/2+txSize/2);
+    }else{
+      if(ID == 6){
+        fill(255);
+      }
+      text(tx,x+offset,y+height/2+txSize/2);
+      if(ID == 6){
+        fill(0);
+      }
+      text(renderedValue,x+width-textWidth(renderedValue)-offset,y+height/2+txSize/2);
+    }
+    
+  }
+  
+  public void render(){
+    if(collideMouse()){
+      currentTooltip = tooltip;
+      currentTooltipName = tx;
+    }
+    switch(ID){
+      case 1:
+      	fill(mainColorRGB[0],mainColorRGB[1],mainColorRGB[2]);
+      	stroke(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+      	rect(x,y,width,height);
+      	fill(0,0,0,0.5);
+      	rect(x,y,map2(value,minValue,maxValue,0,width),height);
+      	renderText();
+      break
+      case 2:
+      	fill(mainColorRGB[0],mainColorRGB[1],mainColorRGB[2]);
+      	stroke(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+      	rect(x,y,width,height);
+      	if(boolValue){
+          double offset = 3;
+          line(x+offset,y+offset,x+width-offset,y+height-offset);
+          line(x+offset,y+height-offset,x+width-offset,y+offset);
+        }
+      break
+      case 3:
+      	fill(mainColorRGB[0],mainColorRGB[1],mainColorRGB[2]);
+      	stroke(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+      	rect(x,y,width,height);
+      	double offset = 4;
+      
+      	rect(dropDownX,y,height,height);
+      	textSize(txSize);
+      	fill(generalColor);
+      	text(dropNames[dropValue],x+2,y+height/2+txSize/2);
+      
+      	if(dropped){
+          fill(mainColorRGB[0],mainColorRGB[1],mainColorRGB[2]);
+          rect(x,y+height,width,height*dropNames.length);
+          for(int i = 0; i < dropNames.length; i++){
+            if(i == dropValue){
+              fill(0,0,0,0.5);
+              noStroke();
+              rect(x+1,y+height*(i+1),width-2,height);
+              stroke(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+            }
+            fill(generalColor);
+            text(dropNames[i],x+2,y+height/2+txSize/2+height*(i+1));
+          }
+        }
+      
+  			fill(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+      	triangle(dropDownX+offset,y+offset,dropDownX+height-offset,y+offset,dropDownX+height/2,y+height-offset);
+      break
+      case 4:
+      	stroke(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+      	rect(x,y,width,height);
+      	for(int i = 1; i < width; i++){
+          int[] c = fromHSLtoRGB(map2(i,0,width,0,360),1,0.5);
+          stroke(c[0],c[1],c[2]);
+          line(x+i,y+1,x+i,y+height-1);
+        }
+      	stroke(generalColor);
+      	noFill();
+      	rect(map2(value,minValue,maxValue,x,x+width),y,2,height);
+      	renderText();
+      break
+      case 5:
+      	stroke(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+      	rect(x,y,width,height);
+      	for(int i = 1; i < width; i++){
+          int[] c = fromHSLtoRGB(renderedHue,map2(i,1,width,0,1),0.5);
+          stroke(c[0],c[1],c[2]);
+          line(x+i,y+1,x+i,y+height-1);
+        }
+      	stroke(generalColor);
+      	noFill();
+      	rect(map2(value,minValue,maxValue,x,x+width),y,2,height);
+      	renderText();
+      break
+      case 6:
+      	stroke(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+      	rect(x,y,width,height);
+      	for(int i = 1; i < width; i++){
+          int[] c = fromHSLtoRGB(0,0,map2(i,1,width,0,1));
+          stroke(c[0],c[1],c[2]);
+          line(x+i,y+1,x+i,y+height-1);
+        }
+      	stroke(generalColor);
+      	noFill();
+      	rect(map2(value,minValue,maxValue,x,x+width),y,2,height);
+      	renderText();
+      break
+      case 7:
+      	fill(mainColorRGB[0],mainColorRGB[1],mainColorRGB[2]);
+      	stroke(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+      	rect(x,y,width,height);
+      	int n = 0;
+      	for(int i = bigStart; i < min(bigStart+4,bigNames.length); i++){
+          if(i == bigValue){
+            fill(0,0,0,0.5);
+            noStroke();
+            rect(x+1,y+20*n,width-2,20);
+            stroke(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+         	}
+          fill(generalColor);
+          text(bigNames[i],x+2,y+20/2+txSize/2+20*n);
+          fill(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+          stroke(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+          rect(x+width-20,y+20*n+10-2.5,15,5);
+          n++;
+        }
+      	if(bigStart+4 > bigNames.length){
+          fill(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+          stroke(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+          rect(x+width/2-2.5,y+20*n+2.5,5,15);
+          rect(x+width/2-7.5,y+20*n+10-2.5,15,5);
+        }
+      	
+      break
+      case 8:
+      	fill(mainColorRGB[0],mainColorRGB[1],mainColorRGB[2]);
+      	stroke(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+      	rect(x,y,width,height);
+      	int n2 = 0;
+      	for(int i = simpleStart; i < min(simpleStart+4,simpleNames.length); i++){
+          if(i == simpleValue){
+            fill(0,0,0,0.5);
+            noStroke();
+            rect(x+1,y+20*n2,width-2,20);
+            stroke(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+         	}
+          fill(generalColor);
+          text(simpleNames[i],x+2,y+20/2+txSize/2+20*n2);
+          n2++;
+        }
+      	
+      break
+    }
+  }
+  
+  public boolean collideMouse(){
+    boolean collision = false;
+    if(intersectPR(x,y,width,height,mouseX,mouseY)){
+      collision = true;
+    }
+    return collision
+  }
+  
+  public double getValue(){
+    switch(ID){
+      default:
+      	if(collideMouse() && !mousePressed){
+          int singleNum = enterNum();
+          if(singleNum >= 0){
+            if(decimal){
+              double decimalSingleNum = singleNum;
+              if(negative){
+                enteredNum -= decimalSingleNum/count;
+              }else{
+                enteredNum += decimalSingleNum/count;
+              }
+              count *= 10;
+            }else{
+              enteredNum *= 10;
+              if(negative){
+                enteredNum -= singleNum;
+              }else{
+                enteredNum += singleNum;
+              }
+            }
+          }
+          if(singleNum == -3){
+            decimal = true;
+          }
+          if(singleNum == -4){
+            negative = true;
+          }
+          if(singleNum == -1){
+            if(enteredNum <= maxValue && enteredNum >= minValue){
+              value = enteredNum;
+            }
+            enteredNum = 0;
+            decimal = false;
+            negative = false;
+            count = 10;
+          }
+        }
+        if(collideMouse() && mousePressed && enteredNum <= 0){
+          value = map2(mouseX-x,0,width,minValue,maxValue);
+        }
+      break
+    }
+    return value
+  }
+  
+  public boolean getBoolValue(){
+    if(collideMouse() && mousePressed){
+      mousePressed = false;
+      boolValue = !boolValue;
+    }
+    return boolValue
+  }
+  
+  public boolean collideMouseDrop(){
+    boolean collision = false;
+    if(intersectPR(dropDownX,y,height,height,mouseX,mouseY)){
+      collision = true;
+    }
+    return collision
+  }
+  
+  public int getDropValue(){
+    if(collideMouseDrop() && mousePressed){
+      mousePressed = false;
+      dropped = !dropped;
+    }
+    if(dropped){
+      for(int i = 0; i < dropNames.length; i++){
+        if(intersectPR(x,y+height*(i+1),width,height,mouseX,mouseY) && mousePressed){
+          mousePressed = false;
+          dropValue = i;
+        }
+      }
+    }
+    return dropValue
+  }
+  
+  public int getBigValue(){
+    int n = 0;
+    for(int i = bigStart; i < min(bigStart+4,bigNames.length); i++){
+      if(intersectPR(x,y+20*n,width-20,20,mouseX,mouseY) && mousePressed){
+        mousePressed = false;
+        bigValue = i;
+      }
+      if(intersectPR(x+width-20,y+20*n,20,20,mouseX,mouseY) && mousePressed){
+        mousePressed = false;
+        bigSus = true;
+        bigSusIndex = i;
+      }
+      n++;
+    }
+    if(intersectPR(x,y+20*n,width,20,mouseX,mouseY) && mousePressed && bigStart+4 > bigNames.length){
+      mousePressed = false;;
+      bigAdd = true;
+    }
+    return bigValue
+  }
+  public int getSimpleValue(){
+    int n = 0;
+    for(int i = simpleStart; i < min(simpleStart+4,simpleNames.length); i++){
+      if(intersectPR(x,y+20*n,width,20,mouseX,mouseY) && mousePressed){
+        mousePressed = false;
+        simpleValue = i;
+      }
+      n++;
+    }
+    return simpleValue
+  }
+}
+
+class but{
+  int ID;
+  int type;
+  double x;
+  double y;
+  double width;
+  double height;
+  
+  boolean clicked;
+  boolean hovering;
+  
+  String tx = "";
+  int txSize = 8;
+  
+  but(int type, int ID, double x, double y, double width, double height){
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+    this.type = type;
+    this.ID = ID;
+    this.clicked = false;
+    this.hovering = false;
+  }
+  
+  public void render(){
+    if(hovering){
+      fill(0,0,0,0.35);
+      noStroke();
+      rect(x,y,width,height);
+    }
+    if(clicked && ID != 1 && ID != 7 && type != 3){
+      fill(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+      stroke(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+      rect(x,y,2,height);
+    }
+  }
+  
+  public void renderTx(){
+    if(hovering){
+      fill(0,0,0,0.35);
+      noStroke();
+      rect(x,y,width,height);
+    }
+    if(clicked && ID != 1 && type != 3){
+      fill(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+      stroke(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+      if(ID < 10){
+        rect(x,y,2,height);
+      }else{
+        rect(x,y+height-2,width,2);
+      }
+    }
+    fill(generalColor);
+    textSize(txSize);
+    text(tx,x+width/2-textWidth(tx)/2,y+height/2+txSize/2);
+  }
+  
+  public void hover(){
+    switch(type){
+      case 1:
+      	if(intersectPR(x,y,width,height,mouseX,mouseY)){
+          hovering = true;
+        }else{
+          hovering = false;
+        }
+      break
+      case 2: 
+      	if(intersectPC(x,y,width,mouseX,mouseY)){
+          hovering = true;
+        }else{
+          hovering = false;
+        }
+      break
+      case 3:
+      	if(intersectPR(x,y,width,height,mouseX,mouseY)){
+          hovering = true;
+        }else{
+          hovering = false;
+        }
+      break
+    }
+    
+  }
+  public void click(){
+    switch(type){
+      case 1:
+      	if(intersectPR(x,y,width,height,mouseX,mouseY) && mousePressed){
+          mousePressed = false;
+          if(ID < 10){
+            clicked = !clicked;
+          }else if(clicked == false){
+            clicked = !clicked;
+          }
+          if(clicked == true){
+						if(ID < 10){
+              reset(taskBar);
+            }else if(ID < 20){
+              reset(emitBar);
+            }else if(ID < 30){
+              reset(particleBar);
+            }else if(ID < 40){
+              reset(listBar);
+            }else if(ID < 50){
+              reset(optionsBar);
+            }else if(ID < 60){
+              reset(helpBar);
+            }
+            clicked = true;
+          }
+        }
+      break
+      case 2:
+      	if(intersectPC(x,y,width,mouseX,mouseY) && mousePressed){
+          mousePressed = false;
+          clicked = !clicked;
+        }
+      break
+      case 3:
+      	if(intersectPR(x,y,width,height,mouseX,mouseY) && mousePressed){
+          mousePressed = false;
+          clicked = !clicked;
+        }
+      break
+    }
+    
+  }
+  
+  public void update(){
+    this.hover();
+    this.click();
+  }
+}
+
+//int ID, double x, double y, double width, double height
+sel emitterX = new sel(1,50,230,80,20);
+emitterX.minValue = 0;
+emitterX.maxValue = 320;
+emitterX.tx = "X";
+emitterX.tooltip = "Posición del emisor en X";
+
+sel emitterY = new sel(1,50,260,80,20);
+emitterY.minValue = 0;
+emitterY.maxValue = 320;
+emitterY.tx = "Y";
+emitterY.tooltip = "Posición del emisor en Y";
+
+sel emmiterFrec = new sel(1,50,290,80,20);
+emmiterFrec.minValue = 0;
+emmiterFrec.maxValue = 100;
+emmiterFrec.tx = "Frec.";
+emmiterFrec.tooltip = "Frecuencia con la que aparecen partículas";
+
+sel emmiterMaxP = new sel(1,140,230,80,20);
+emmiterMaxP.minValue = 1;
+emmiterMaxP.maxValue = 10000;
+emmiterMaxP.tx = "Mx. P.";
+emmiterMaxP.tooltip = "Máximo número de partículas del emisor";
+
+sel emmiterPAmount = new sel(1,140,260,80,20);
+emmiterPAmount.minValue = 0;
+emmiterPAmount.maxValue = 100;
+emmiterPAmount.tx = "Cuota P.";
+emmiterPAmount.tooltip = "Cantidad de partículas que aparece cada vez";
+
+sel emitterMoveMouse = new sel(2,200,290,20,20);
+emitterMoveMouse.tx = "Mueve E.";
+emitterMoveMouse.tooltip = "Permite mover el emisor con el ratón";
+
+sel emitterBurst = new sel(2,290,230,20,20);
+emitterBurst.tx = "Ráfaga";
+emitterBurst.tooltip = "Lanza una ráfaga al mantener pulsado el ratón";
+
+sel emitterOneBurst = new sel(2,290,260,20,20);
+emitterOneBurst.tx = "R. Única";
+emitterOneBurst.tooltip = "Lanza la ráfaga solo al pulsar";
+
+sel emitterWidth = new sel(1,185,235,40,15);
+emitterWidth.minValue = 1;
+emitterWidth.maxValue = 320;
+emitterWidth.tx = "Anchura";
+emitterWidth.tooltip = "Anchura del emisor";
+emitterWidth.centered = true;
+
+sel emitterHeight = new sel(1,185,255,40,15);
+emitterHeight.minValue = 1;
+emitterHeight.maxValue = 320;
+emitterHeight.tx = "Altura";
+emitterHeight.tooltip = "Altura del emisor";
+emitterHeight.centered = true;
+
+sel emitterArc = new sel(1,185,275,40,15);
+emitterArc.minValue = 1;
+emitterArc.maxValue = 320;
+emitterArc.tx = "Anillo";
+emitterArc.tooltip = "Tamaño del anillo del emisor";
+emitterArc.centered = true;
+
+sel emitterAspectRatio = new sel(2,185,295,15,15);
+emitterAspectRatio.tx = "Relación A.";
+emitterAspectRatio.tooltip = "Mantiene la relación de aspecto";
+
+sel particleMinWidth = new sel(1,185,235,40,15);
+particleMinWidth.minValue = 0;
+particleMinWidth.maxValue = 100;
+particleMinWidth.tx = "Mín. An.";
+particleMinWidth.tooltip = "Anchura mínima de la partícula";
+particleMinWidth.centered = true;
+
+sel particleMaxWidth = new sel(1,230,235,40,15);
+particleMaxWidth.minValue = 0;
+particleMaxWidth.maxValue = 100;
+particleMaxWidth.tx = "Máx. An.";
+particleMaxWidth.tooltip = "Anchura máxima de la partícula";
+particleMaxWidth.centered = true;
+
+sel particleIncWidth = new sel(1,275,235,40,15);
+particleIncWidth.minValue = -5;
+particleIncWidth.maxValue = 5;
+particleIncWidth.tx = "Inc. An.";
+particleIncWidth.tooltip = "Aumento de la anchura de la partícula";
+particleIncWidth.centered = true;
+
+sel particleMinHeight = new sel(1,185,255,40,15);
+particleMinHeight.minValue = 0;
+particleMinHeight.maxValue = 100;
+particleMinHeight.tx = "Mín. Al.";
+particleMinHeight.tooltip = "Altura mínima de la partícula";
+particleMinHeight.centered = true;
+
+sel particleMaxHeight = new sel(1,230,255,40,15);
+particleMaxHeight.minValue = 0;
+particleMaxHeight.maxValue = 100;
+particleMaxHeight.tx = "Máx. Al.";
+particleMaxHeight.tooltip = "Altura máxima de la partícula";
+particleMaxHeight.centered = true;
+
+sel particleIncHeight = new sel(1,275,255,40,15);
+particleIncHeight.minValue = -5;
+particleIncHeight.maxValue = 5;
+particleIncHeight.tx = "Inc. Al.";
+particleIncHeight.tooltip = "Aumento de la altura de la partícula";
+particleIncHeight.centered = true;
+
+sel particleMinStr = new sel(1,185,275,40,15);
+particleMinStr.minValue = 0;
+particleMinStr.maxValue = 100;
+particleMinStr.tx = "Mín. B.";
+particleMinStr.tooltip = "Borde mínimo de la partícula";
+particleMinStr.centered = true;
+
+sel particleMaxStr = new sel(1,230,275,40,15);
+particleMaxStr.minValue = 0;
+particleMaxStr.maxValue = 100;
+particleMaxStr.tx = "Máx. B.";
+particleMaxStr.tooltip = "Borde máximo de la partícula";
+particleMaxStr.centered = true;
+
+sel particleIncStr = new sel(1,275,275,40,15);
+particleIncStr.minValue = -5;
+particleIncStr.maxValue = 5;
+particleIncStr.tx = "Inc. B.";
+particleIncStr.tooltip = "Aumento del borde de la partícula";
+particleIncStr.centered = true;
+
+sel particleAspectRatio = new sel(2,185,295,15,15);
+particleAspectRatio.tx = "Relación A.";
+particleAspectRatio.tooltip = "Mantiene la relación de aspecto";
+
+sel particleForm = new sel(3,50,230,80,15);
+particleForm.tx = "Forma P";
+particleForm.tooltip = "Forma de las partículas emitidas";
+
+sel emitterForm = new sel(3,50,230,80,15);
+emitterForm.tx = "Forma E";
+emitterForm.tooltip = "Forma del emisor";
+
+sel particleMinLifetime = new sel(1,50,230,80,20);
+particleMinLifetime.minValue = 1;
+particleMinLifetime.maxValue = 1500;
+particleMinLifetime.tx = "Mín. V.";
+particleMinLifetime.tooltip = "Vida mínima de las partículas";
+
+sel particleMaxLifetime = new sel(1,50,260,80,20);
+particleMaxLifetime.minValue = 1;
+particleMaxLifetime.maxValue = 1500;
+particleMaxLifetime.tx = "Máx. V.";
+particleMaxLifetime.tooltip = "Vida máxima de las partículas";
+
+sel particleInfLifetime = new sel(2,110,290,20,20);
+particleInfLifetime.tx = "Vida I.";
+particleInfLifetime.tooltip = "Da vida infinita a las partículas";
+
+sel particleMinAngle = new sel(1,185,235,40,15);
+particleMinAngle.minValue = 0;
+particleMinAngle.maxValue = 360;
+particleMinAngle.tx = "Mín. Án.";
+particleMinAngle.tooltip = "Ángulo mínimo de la partícula";
+particleMinAngle.centered = true;
+
+sel particleMaxAngle = new sel(1,230,235,40,15);
+particleMaxAngle.minValue = 0;
+particleMaxAngle.maxValue = 360;
+particleMaxAngle.tx = "Máx. Án.";
+particleMaxAngle.tooltip = "Ángulo máximo de la partícula";
+particleMaxAngle.centered = true;
+
+sel particleIncAngle = new sel(1,275,235,40,15);
+particleIncAngle.minValue = -5;
+particleIncAngle.maxValue = 5;
+particleIncAngle.tx = "Inc. Án.";
+particleIncAngle.tooltip = "Aumento del ángulo de la partícula";
+particleIncAngle.centered = true;
+
+sel particleMinVel = new sel(1,185,255,40,15);
+particleMinVel.minValue = 0;
+particleMinVel.maxValue = 100;
+particleMinVel.tx = "Mín. Vel.";
+particleMinVel.tooltip = "Velocidad mínima de la partícula";
+particleMinVel.centered = true;
+
+sel particleMaxVel = new sel(1,230,255,40,15);
+particleMaxVel.minValue = 0;
+particleMaxVel.maxValue = 100;
+particleMaxVel.tx = "Máx. Vel.";
+particleMaxVel.tooltip = "Velocidad máxima de la partícula";
+particleMaxVel.centered = true;
+
+sel particleIncVel = new sel(1,275,255,40,15);
+particleIncVel.minValue = -5;
+particleIncVel.maxValue = 5;
+particleIncVel.tx = "Inc. Vel.";
+particleIncVel.tooltip = "Aumento de la velocidad de la partícula";
+particleIncVel.centered = true;
+
+sel particleSen = new sel(2,90,235,15,15);
+particleSen.tx = "Seno";
+particleSen.tooltip = "Activa el seno en partículas";
+
+sel particleSenAmp = new sel(1,45,255,40,15);
+particleSenAmp.minValue = 0;
+particleSenAmp.maxValue = 20;
+particleSenAmp.tx = "Amp";
+particleSenAmp.tooltip = "Amplitud del seno en partículas";
+particleSenAmp.centered = true;
+
+sel particleSenVel = new sel(1,90,255,40,15);
+particleSenVel.minValue = 0;
+particleSenVel.maxValue = 50;
+particleSenVel.tx = "Vel";
+particleSenVel.tooltip = "Velocidad del seno en partículas";
+particleSenVel.centered = true;
+
+sel particleCos = new sel(2,90,275,15,15);
+particleCos.tx = "Coseno";
+particleCos.tooltip = "Activa el coseno en partículas";
+
+sel particleCosAmp = new sel(1,45,295,40,15);
+particleCosAmp.minValue = 0;
+particleCosAmp.maxValue = 20;
+particleCosAmp.tx = "Amp";
+particleCosAmp.tooltip = "Amplitud del coseno en partículas";
+particleCosAmp.centered = true;
+
+sel particleCosVel = new sel(1,90,295,40,15);
+particleCosVel.minValue = 0;
+particleCosVel.maxValue = 50;
+particleCosVel.tx = "Vel";
+particleCosVel.tooltip = "Velocidad del coseno en partículas";
+particleCosVel.centered = true;
+
+sel particleMinAlpha = new sel(1,185,235,40,15);
+particleMinAlpha.minValue = 0;
+particleMinAlpha.maxValue = 1;
+particleMinAlpha.tx = "Mín. Tr.";
+particleMinAlpha.tooltip = "Transparencia mínima de la partícula";
+particleMinAlpha.centered = true;
+
+sel particleMaxAlpha = new sel(1,230,235,40,15);
+particleMaxAlpha.minValue = 0;
+particleMaxAlpha.maxValue = 1;
+particleMaxAlpha.tx = "Máx. Tr.";
+particleMaxAlpha.tooltip = "Transparencia máxima de la partícula";
+particleMaxAlpha.centered = true;
+
+sel particleIncAlpha = new sel(1,275,235,40,15);
+particleIncAlpha.minValue = -0.5;
+particleIncAlpha.maxValue = 0.5;
+particleIncAlpha.tx = "Inc. Tr."; 
+particleIncAlpha.tooltip = "Aumento de la transparencia de la partícula";
+particleIncAlpha.centered = true;
+
+sel particleMinAlphaB = new sel(1,185,255,40,15);
+particleMinAlphaB.minValue = 0;
+particleMinAlphaB.maxValue = 1;
+particleMinAlphaB.tx = "Mín. Tr. (B)";
+particleMinAlphaB.tooltip = "Transparencia mínima del borde";
+particleMinAlphaB.centered = true;
+
+sel particleMaxAlphaB = new sel(1,230,255,40,15);
+particleMaxAlphaB.minValue = 0;
+particleMaxAlphaB.maxValue = 1;
+particleMaxAlphaB.tx = "Máx. Tr. (B)";
+particleMaxAlphaB.tooltip = "Transparencia máxima del borde";
+particleMaxAlphaB.centered = true;
+
+sel particleIncAlphaB = new sel(1,275,255,40,15);
+particleIncAlphaB.minValue = -0.5;
+particleIncAlphaB.maxValue = 0.5;
+particleIncAlphaB.tx = "Inc. Tr. (B)";
+particleIncAlphaB.tooltip = "Aumento de la transparencia del borde";
+particleIncAlphaB.centered = true;
+
+sel particleHue1 = new sel(4,45,230,60,12);
+particleHue1.tx = "Hue I.";
+particleHue1.tooltip = "Ajusta el color inicial de la partícula";
+
+sel particleSat1 = new sel(5,45,245,60,12);
+particleSat1.tx = "Sat I.";
+particleSat1.tooltip = "Ajusta la saturación inicial de la partícula";
+
+sel particleLum1 = new sel(6,45,260,60,12);
+particleLum1.tx = "Lum I.";
+particleLum1.tooltip = "Ajusta el brillo inicial de la partícula";
+
+sel particleHue2 = new sel(4,115,230,60,12);
+particleHue2.tx = "Hue M.";
+particleHue2.tooltip = "Ajusta el color medio de la partícula";
+
+sel particleSat2 = new sel(5,115,245,60,12);
+particleSat2.tx = "Sat M.";
+particleSat2.tooltip = "Ajusta la saturación media de la partícula";
+
+sel particleLum2 = new sel(6,115,260,60,12);
+particleLum2.tx = "Lum M.";
+particleLum2.tooltip = "Ajusta el brillo medio de la partícula";
+
+sel particleHue3 = new sel(4,185,230,60,12);
+particleHue3.tx = "Hue F.";
+particleHue3.tooltip = "Ajusta el color final de la partícula";
+
+sel particleSat3 = new sel(5,185,245,60,12);
+particleSat3.tx = "Sat F.";
+particleSat3.tooltip = "Ajusta la saturación final de la partícula";
+
+sel particleLum3 = new sel(6,185,260,60,12);
+particleLum3.tx = "Lum F.";
+particleLum3.tooltip = "Ajusta el brillo final de la partícula";
+
+sel particleHueStr = new sel(4,255,230,60,12);
+particleHueStr.tx = "Hue B.";
+particleHueStr.tooltip = "Ajusta el color del borde";
+
+sel particleSatStr = new sel(5,255,245,60,12);
+particleSatStr.tx = "Sat B.";
+particleSatStr.tooltip = "Ajusta la saturación del borde";
+
+sel particleLumStr = new sel(6,255,260,60,12);
+particleLumStr.tx = "Lum B.";
+particleLumStr.tooltip = "Ajusta el brillo del borde";
+
+sel particleAtractors = new sel(7,50,230,120,80);
+particleAtractors.dropValue = 0;
+particleAtractors.tx = "Fuerzas";
+particleAtractors.tooltip = "Lista de fuerzas atractoras o repulsoras";
+
+sel[] atractorsX = new sel[curEmmiter.atractors.length];
+sel[] atractorsY = new sel[curEmmiter.atractors.length];
+sel[] atractorsStr = new sel[curEmmiter.atractors.length];
+sel[] atractorsAtr = new sel[curEmmiter.atractors.length];
+for(int i = 0; i < curEmmiter.atractors.length; i++){
+	atractorsX[i] = new sel(1,210,230,80,20);
+  atractorsY[i] = new sel(1,210,260,80,20);
+  atractorsStr[i] = new sel(1,210,290,80,20);
+  atractorsAtr[i] = new sel(2,180,260,20,20);
+
+  atractorsX[i].minValue = 0;
+  atractorsX[i].maxValue = 320;
+  atractorsX[i].tx = "X Fuerzas";
+  atractorsX[i].tooltip = "Posición de la fuerza en X";
+
+  atractorsY[i].minValue = 0;
+  atractorsY[i].maxValue = 320;
+  atractorsY[i].tx = "Y Fuerzas";
+  atractorsY[i].tooltip = "Posición del emisor en X";
+
+  atractorsStr[i].minValue = 0;
+  atractorsStr[i].maxValue = 30;
+  atractorsStr[i].tx = "M. Fuerzas";
+  atractorsStr[i].tooltip = "Magnitud de la fuerza";
+
+  atractorsAtr[i].tx = "Sentido";
+  atractorsAtr[i].tooltip = "Cambia el sentido de atractor a repulsor";
+}
+
+sel listEmitters = new sel(7,50,230,120,80);
+listEmitters.dropValue = 0;
+listEmitters.tx = "Emisores";
+listEmitters.tooltip = "Lista de emisores en el sistema";
+sel[] listEmitterHide;
+
+sel listSystems = new sel(7,50,230,200,80);
+listSystems.dropValue = 0;
+listSystems.tx = "S. Part.";
+listSystems.tooltip = "Lista de sistemas de partículas en el programa";
+String[] names3 = {"Default","Danza de colores","Bola de energia","Cursor","Fuegos Artificiales"};
+listSystems.bigNames = names3;  
+
+sel optShowAtractors = new sel(2,50,230,20,20);
+optShowAtractors.tx = "Fuerzas";
+optShowAtractors.tooltip = "Muestra los centros de las fuerzas";
+optShowAtractors.boolValue = showAtractors;
+
+sel optDebugParticle = new sel(2,50,260,20,20);
+optDebugParticle.tx = "Dirección";
+optDebugParticle.tooltip = "Muestra la dirección de las partículas";
+optDebugParticle.boolValue = debugParticle;
+
+sel optHideInfo = new sel(2,50,290,20,20);
+optHideInfo.tx = "Info";
+optHideInfo.tooltip = "Muestra información general del programa";
+optHideInfo.boolValue = hideInfo;
+
+sel optShowEmitters = new sel(2,150,230,20,20);
+optShowEmitters.tx = "Emisores";
+optShowEmitters.tooltip = "Muestra la forma del emisor seleccionado";
+optShowEmitters.boolValue = showEmitters;
+
+sel optGeneralColor = new sel(6,150,260,90,20);
+optGeneralColor.tx = "Texto UI";
+optGeneralColor.tooltip = "Color del texto de la inferfaz";
+optGeneralColor.value = generalColor;
+optGeneralColor.minValue = 0;
+optGeneralColor.maxValue = 255;
+
+sel optGeneralColor2 = new sel(6,150,290,90,20);
+optGeneralColor2.tx = "Texto F.";
+optGeneralColor2.tooltip = "Color del texto del fondo";
+optGeneralColor2.value = generalColor2;
+optGeneralColor2.minValue = 0;
+optGeneralColor2.maxValue = 255;
+
+sel deathEmitters = new sel(8,50,230,120,80);
+deathEmitters.tx = "Emisor secundario";
+deathEmitters.tooltip = "Se añade uno al morir una partícula";
+
+sel deathEmittersLife = new sel(1,210,230,80,20);
+deathEmittersLife.minValue = -1;
+deathEmittersLife.maxValue = 500;
+deathEmittersLife.tx = "Vida";
+deathEmittersLife.tooltip = "Vida de los emisores secundarios";
+
+but openMenu = new but(1,1,0,0,40,40);
+but emitMenu = new but(1,2,0,40,40,40);
+but partMenu = new but(1,3,0,80,40,40);
+but exMenu = new but(1,4,0,120,40,40);
+but helpMenu = new but(1,5,0,160,40,40);
+but settMenu = new but(1,6,0,200,40,40);
+but download = new but(1,7,0,240,40,40);
+
+but[] taskBar = {openMenu,emitMenu,partMenu,exMenu,helpMenu,settMenu};
+
+but propEmitter = new but(1,10,40,200,60,20);
+propEmitter.tx = "General";
+propEmitter.clicked = true;
+
+but formEmitter = new but(1,11,100,200,50,20);
+formEmitter.tx = "Forma";
+
+but secEmitter = new but(1,12,150,200,70,20);
+secEmitter.tx = "Secundario";
+
+but propParticle = new but(1,20,40,200,60,20);
+propParticle.tx = "General";
+propParticle.clicked = true;
+
+but formParticle = new but(1,21,100,200,50,20);
+formParticle.tx = "Forma";
+
+but movParticle = new but(1,22,150,200,70,20);
+movParticle.tx = "Movimiento";
+
+but colParticle = new but(1,23,220,200,50,20);
+colParticle.tx = "Color";
+
+but phyParticle = new but(1,23,270,200,50,20);
+phyParticle.tx = "Físicas";
+
+but emmiterList = new but(1,30,40,200,60,20);
+emmiterList.tx = "Emisores";
+emmiterList.clicked = true;
+
+but systemList = new but(1,31,100,200,60,20);
+systemList.tx = "Sistemas";
+
+but genOptions = new but(1,40,40,200,60,20);
+genOptions.tx = "General";
+genOptions.clicked = true;
+
+but colOptions = new but(1,41,100,200,50,20);
+colOptions.tx = "Color";
+
+but genHelp = new but(1,50,40,200,60,20);
+genHelp.tx = "General";
+genHelp.clicked = true;
+
+but emHelp = new but(1,51,100,200,60,20);
+emHelp.tx = "Emisores";
+
+but partHelp = new but(1,52,160,200,70,20);
+partHelp.tx = "Partículas";
+
+but listHelp = new but(1,53,230,200,60,20);
+listHelp.tx = "Favoritos";
+
+but clearParticles = new but(3,1000,230,290,80,20);
+clearParticles.tx = "Despejar";
+
+but upPage = new but(3,1001,260,230,20,20);
+but downPage = new but(3,1001,260,290,20,20);
+
+but[] emitBar = {openMenu,propEmitter,formEmitter,secEmitter};
+
+but[] particleBar = {openMenu,propParticle,formParticle,movParticle,colParticle,phyParticle};
+
+but[] listBar = {emmiterList,systemList};
+
+but[] optionsBar = {genOptions,colOptions};
+
+but[] helpBar = {genHelp,emHelp,partHelp,listHelp};
+
+boolean hideUI = false;
+
+sel[] addSel(sel[] arr, sel newSel){
+  sel[] aux = arr;
+  arr = new sel[aux.length+1];
+  for(int i = 0; i < aux.length; i++){
+    arr[i] = aux[i];
+  }
+  arr[aux.length] = newSel;
+  return arr
+}
+
+sel[] delSel(sel[] arr, int index){
+  sel[] aux = arr;
+  arr = new sel[aux.length-1];
+  int n = 0;
+  for(int i = 0; i < aux.length; i++){
+    if(i != index){
+      arr[n] = aux[i];
+      n++;
+    }
+  }
+  return arr
+}
+
+void getCurValues(){
+  emitterX.value = curEmmiter.x;
+  emitterY.value = curEmmiter.y;
+  emmiterFrec.value = curEmmiter.spawnRate;
+  emmiterMaxP.value = curEmmiter.maxParticles;
+  emmiterPAmount.value = curEmmiter.parPerBatch;
+  emitterMoveMouse.boolValue = curEmmiter.moveEmmisor;
+  emitterBurst.boolValue = curEmmiter.burst;
+  emitterOneBurst.boolValue = curEmmiter.oneBurst;
+  emitterWidth.value = curEmmiter.width;
+  emitterHeight.value = curEmmiter.height;
+  emitterArc.value = curEmmiter.arc;
+  emitterAspectRatio.boolValue = curEmmiter.eAspectRatio;
+  particleMinWidth.value = curEmmiter.minpwidth;
+  particleMaxWidth.value = curEmmiter.maxpwidth;
+  particleIncWidth.value = curEmmiter.pwidthIncrease;
+  particleMinHeight.value = curEmmiter.minpheight;
+  particleMaxHeight.value = curEmmiter.maxpheight;
+  particleIncHeight.value = curEmmiter.pheightIncrease;
+  particleMinStr.value = curEmmiter.minpstrWidth;
+  particleMaxStr.value = curEmmiter.maxpstrWidth;
+  particleIncStr.value = curEmmiter.pstrWidthIncrease;
+  particleAspectRatio.boolValue = curEmmiter.aspectRatio;
+  particleForm.dropValue = curEmmiter.type;
+  particleForm.dropNames = curEmmiter.typeArr;
+  emitterForm.dropValue = curEmmiter.emmisorType;
+  emitterForm.dropNames = curEmmiter.emmisorTypeArr;
+  particleMinLifetime.value = curEmmiter.minplifetime;
+  particleMaxLifetime.value = curEmmiter.maxplifetime;
+  particleInfLifetime.boolValue = curEmmiter.infLifetime;
+  particleMinAngle.value = curEmmiter.minpangle;
+  particleMaxAngle.value = curEmmiter.maxpangle;
+  particleIncAngle.value = curEmmiter.pangleIncrease;
+  particleMinVel.value = curEmmiter.minpspeed;
+  particleMaxVel.value = curEmmiter.maxpspeed;
+  particleIncVel.value = curEmmiter.pspeedIncrease;
+  particleSen.boolValue = curEmmiter.psenX;
+  particleSenAmp.value = curEmmiter.pampX;
+  particleSenVel.value = curEmmiter.pspeedX;
+  particleCos.boolValue = curEmmiter.pcosY;
+  particleCosAmp.value = curEmmiter.pampY;
+  particleCosVel.value = curEmmiter.pspeedY;
+  particleMinAlpha.value = curEmmiter.minpalpha;
+  particleMaxAlpha.value = curEmmiter.maxpalpha;
+  particleIncAlpha.value = curEmmiter.palphaIncrease;
+  particleMinAlphaB.value = curEmmiter.minpalphaStr;
+  particleMaxAlphaB.value = curEmmiter.maxpalphaStr;
+  particleIncAlphaB.value = curEmmiter.palphaStrIncrease;
+  particleHue1.value = curEmmiter.sHsl[0];
+  particleSat1.value = curEmmiter.sHsl[1];
+  particleLum1.value = curEmmiter.sHsl[2];
+  particleHue2.value = curEmmiter.mHsl[0];
+  particleSat2.value = curEmmiter.mHsl[1];
+  particleLum2.value = curEmmiter.mHsl[2];
+  particleHue3.value = curEmmiter.eHsl[0];
+  particleSat3.value = curEmmiter.eHsl[1];
+  particleLum3.value = curEmmiter.eHsl[2];
+  particleHueStr.value = curEmmiter.phslStr[0];
+  particleSatStr.value = curEmmiter.phslStr[1];
+  particleLumStr.value = curEmmiter.phslStr[2];
+  String[] names = new String[curEmmiter.atractors.length];
+  for(int i = 0; i < curEmmiter.atractors.length; i++){
+    names[i] = "Fuerza ";
+  }
+  particleAtractors.bigNames = names;
+  if(atractorsX.length == 0){
+    atractorsX = new sel[curEmmiter.atractors.length];
+    atractorsY = new sel[curEmmiter.atractors.length];
+    atractorsStr = new sel[curEmmiter.atractors.length];
+    atractorsAtr = new sel[curEmmiter.atractors.length];   
+    for(int i = 0; i < names.length; i++){
+      atractorsX[i] = new sel(1,210,230,80,20);
+      atractorsY[i] = new sel(1,210,260,80,20);
+      atractorsStr[i] = new sel(1,210,290,80,20);
+      atractorsAtr[i] = new sel(2,180,260,20,20);
+
+      atractorsX[i].minValue = 0;
+      atractorsX[i].maxValue = 320;
+      atractorsX[i].tx = "X Fuerzas";
+      atractorsX[i].tooltip = "Posición de la fuerza en X";
+
+      atractorsY[i].minValue = 0;
+      atractorsY[i].maxValue = 320;
+      atractorsY[i].tx = "Y Fuerzas";
+      atractorsY[i].tooltip = "Posición del emisor en X";
+
+      atractorsStr[i].minValue = 0;
+      atractorsStr[i].maxValue = 30;
+      atractorsStr[i].tx = "M. Fuerzas";
+      atractorsStr[i].tooltip = "Magnitud de la fuerza";
+
+      atractorsAtr[i].tx = "Sentido";
+      atractorsAtr[i].tooltip = "Cambia el sentido de atractor a repulsor";
+      atractorsX[i].value = curEmmiter.atractors[i].pos.x;
+
+      atractorsY[i].value = curEmmiter.atractors[i].pos.y;
+
+      atractorsStr[i].value = curEmmiter.atractors[i].strength;
+
+      atractorsAtr[i].boolValue = curEmmiter.atractors[i].atract;
+    }
+  }else{
+    for(int i = 0; i < names.length; i++){
+      atractorsX[i].value = curEmmiter.atractors[i].pos.x;
+
+      atractorsY[i].value = curEmmiter.atractors[i].pos.y;
+
+      atractorsStr[i].value = curEmmiter.atractors[i].strength;
+
+      atractorsAtr[i].boolValue = curEmmiter.atractors[i].atract;
+    }
+  }
+  
+  String[] names2 = new String[curParticleSystem.emitters.length];
+  for(int i = 0; i < curParticleSystem.emitters.length; i++){
+    names2[i] = "Emisor ";
+  }
+  listEmitters.bigNames = names2;
+  listEmitterHide = new sel[names2.length];
+  for(int i = 0; i < names2.length; i++){
+    listEmitterHide[i] = new sel(2,290,230,20,20);
+    listEmitterHide[i].boolValue = curParticleSystem.emitters[i].hide;
+    listEmitterHide[i].tx = "Esconder";
+    listEmitterHide[i].tooltip = "Hace invisble al emisor seleccionado";
+  }
+  int emitterSelected = 0;
+  for(int i = 0; i < curParticleSystem.emitters.length; i++){
+    if(curParticleSystem.emitters[i] == curEmmiter.deathEmmit){
+      emitterSelected = i;
+    }
+  }
+  deathEmitters.simpleValue = emitterSelected;
+  deathEmitters.simpleNames = listEmitters.bigNames;
+  deathEmittersLife.value = curEmmiter.deathEmitLife;
+}
+
+void drawRect(double x, double y, double width, double height, double[] color1, double[] color2){
+  for(int i = 0; i < height; i++){
+    double finalHue = map2(i,0,height-1,color1[0],color2[0]);
+    double finalSat = map2(i,0,height-1,color1[1],color2[1]);
+    double finalLum = map2(i,0,height-1,color1[2],color2[2]);
+    int[] finalColor = fromHSLtoRGB(finalHue,finalSat,finalLum);
+    stroke(finalColor[0],finalColor[1],finalColor[2]);
+    line(x,y+i,x+width,y+i);
+  }
+}
+
+void drawRectD1(double x, double y, double width, double height, double inc, double[] color1, double[] color2){
+  strokeWeight(2);
+  for(int i = 0; i < width+inc; i++){
+    double finalHue = map2(i,0,width+inc,color1[0],color2[0]);
+    double finalSat = map2(i,0,width+inc,color1[1],color2[1]);
+    double finalLum = map2(i,0,width+inc,color1[2],color2[2]);
+    int[] finalColor = fromHSLtoRGB(finalHue,finalSat,finalLum);
+    stroke(finalColor[0],finalColor[1],finalColor[2]);
+
+    double offset1 = map2(i,0,inc,0,height);
+    double offset2 = 0;
+    
+    if(offset1 > height){
+      offset1 = height;
+    }
+    if(i > width){
+      offset2 = map2(i,width,width+inc,0,inc);
+    }
+    line(x+i-offset2,y+offset2,x+i-offset1/(height/inc),y+offset1);
+  }
+  strokeWeight(1);
+}
+
+void drawRectC(double x, double y, double width, double height, int sector, double[] color1, double[] color2){
+  strokeWeight(2);
+  int[] backColor = fromHSLtoRGB(color2[0],color2[1],color2[2]);
+  fill(backColor[0],backColor[1],backColor[2]);
+  noStroke();
+  int startAngle = 0;
+  int endAngle = 0;
+  double xArc = x;
+  double yArc = y;
+  switch(sector){
+    case 1:
+    	yArc += height;
+    break
+    case 2:
+    	xArc += width;
+    	yArc += height;
+    	startAngle = 90;
+    break
+    case 3:
+    	xArc += width;
+    	startAngle = 180;
+    break
+    case 4:
+    	startAngle = 270;
+    break
+  }
+  endAngle = startAngle + 90;
+  
+  double largestSide = width;
+  if(largestSide < height){
+    largestSide = height;
+  }
+  
+  rect(x,y,width,height);
+  
+  for(int i = 0; i < largestSide; i++){
+    double finalHue = map2(i,0,largestSide-1,color1[0],color2[0]);
+    double finalSat = map2(i,0,largestSide-1,color1[1],color2[1]);
+    double finalLum = map2(i,0,largestSide-1,color1[2],color2[2]);
+    int[] finalColor = fromHSLtoRGB(finalHue,finalSat,finalLum);
+    stroke(finalColor[0],finalColor[1],finalColor[2]);
+    noFill();
+    double widthArc = map2(i,0,largestSide,0,width);
+    double heightArc = map2(i,0,largestSide,0,height);
+    arc(xArc,yArc,widthArc,heightArc,startAngle,endAngle,5);
+  }
+  strokeWeight(1);
+}
+
+void barListUI(double x, double y){
+  fill(generalColor);
+  stroke(generalColor);
+  strokeWeight(1);
+  rect(x+17,y+10-2,16,3);
+  ellipse(x+17,y+10,4,4);
+  ellipse(x+34,y+10,4,4);
+  rect(x+17,y+20-2,16,3);
+  ellipse(x+17,y+20,4,4);
+  ellipse(x+34,y+20,4,4);
+  rect(x+17,y+30-2,16,3);
+  ellipse(x+17,y+30,4,4);
+  ellipse(x+34,y+30,4,4);
+  ellipse(x+8,y+10,5,5);
+  ellipse(x+8,y+20,5,5);
+  ellipse(x+8,y+30,5,5);
+  strokeWeight(1);
+}
+
+void drawEmitUI(double x, double y){
+  stroke(generalColor);
+  fill(generalColor);
+  strokeWeight(2);
+  line(x+15,y+20,x+25,y+20);
+  line(x+20,y+15,x+20,y+25);
+  strokeWeight(1);
+  ellipse(x+11,y+11,10,10);
+  rect(x+24,y+6,10,10);
+  triangle(x+11,y+24,x+6,y+34,x+16,y+34);
+  line(x+24,y+24,x+34,y+34);
+}
+
+void drawParticleUI(double x, double y){
+  stroke(generalColor);
+  noFill();
+  strokeWeight(3);
+  ellipse(x+12,y+15,10,10);
+  ellipse(x+21,y+31,8,8);
+  ellipse(x+30,y+19,6,6);
+  strokeWeight(1);
+  fill(generalColor);
+  ellipse(x+24,y+11,4,4);
+  ellipse(x+32,y+29,4,4);
+  ellipse(x+10,y+26,4,4);
+}
+
+void drawFavoritesUI(double x, double y){
+  stroke(generalColor);
+  fill(generalColor);
+  strokeWeight(0);
+  rect(x+12,y+23-1,16,2);
+  ellipse(x+12,y+23,2,2);
+  ellipse(x+29,y+23,2,2);
+  rect(x+12,y+29-1,16,2);
+  ellipse(x+12,y+29,2,2);
+  ellipse(x+29,y+29,2,2);
+  rect(x+12,y+35-1,16,2);
+  ellipse(x+12,y+35,2,2);
+  ellipse(x+29,y+35,2,2);
+  star(x+20,y+12,4,2,36,5,54);
+  strokeWeight(1);
+}
+
+void drawHelpUI(double x, double y){
+  stroke(generalColor);
+  fill(generalColor);
+  strokeWeight(3);
+  arc(x+20,y+12,7,7,270,450+90,10);
+  strokeWeight(2);
+  rect(x+19,y+19.5,2,7);
+  ellipse(x+20,y+33,4,4);
+  strokeWeight(1);
+}
+
+void drawSettingsUI(double x, double y){
+  stroke(generalColor);
+  fill(generalColor);
+  strokeWeight(4);
+  arc(x+20,y+20,7,7,0,360,10);
+  strokeWeight(1);
+  double dientes = 8;
+  for(int i = 0; i < dientes; i++){    
+    double[] p1 = toCartesian(9,i*(360/dientes));
+    fancySquare(p1[0]+x+20,p1[1]+y+20,2,1,i*(360/dientes));
+  }
+  strokeWeight(1);
+}
+
+void drawDownloadUI(double x, double y){
+  stroke(generalColor);
+  fill(generalColor);
+  rect(x+20-4,y+5,8,15);
+  triangle(x+10,y+20,x+30,y+20,x+20,y+30);
+  rect(x+5,y+33,30,2);
+}
+
+boolean taskOpened(){
+  return (emitMenu.clicked || partMenu.clicked || exMenu.clicked || helpMenu.clicked || settMenu.clicked)
+}
+
+
+void reset(but[] buttons){
+  for(int i = 0; i < buttons.length; i++){
+    buttons[i].clicked = false;
+  }
+}
+
+boolean inBounds(){
+  return (openMenu.clicked && !intersectPR(0,0,40,40,mouseX,mouseY)) || (!openMenu.clicked && !taskOpened() 
+        && mouseX > 40) || ( taskOpened() && mouseX > 40 && mouseY < 200);
+}
+//Main
+//237,0.29,0.19
+//Secondary
+//169,0.45,0.73
+//170,0.80,0.56
+//174,0.55,0.53
+//288,0.55,0.53
+
+double[] mainColorHSL = {237,0.29,0.19};
+double[] secColorHSL = {174,0.55,0.53};
+int[] mainColorRGB = fromHSLtoRGB(mainColorHSL[0],mainColorHSL[1],mainColorHSL[2]);
+int[] secColorRGB = fromHSLtoRGB(secColorHSL[0],secColorHSL[1],secColorHSL[2]);
+
+sel optHue1 = new sel(4,45,230,60,12);
+optHue1.tx = "Hue 1";
+optHue1.tooltip = "Ajusta el color principal de la UI";
+optHue1.value = mainColorHSL[0];
+
+sel optSat1 = new sel(5,45,245,60,12);
+optSat1.tx = "Sat 1";
+optSat1.tooltip = "Ajusta la saturación principal de la UI";
+optSat1.value = mainColorHSL[1];
+
+sel optLum1 = new sel(6,45,260,60,12);
+optLum1.tx = "Lum 1";
+optLum1.tooltip = "Ajusta el brillo principal de la UI";
+optLum1.value = mainColorHSL[2];
+
+sel optHue2 = new sel(4,115,230,60,12);
+optHue2.tx = "Hue 2";
+optHue2.tooltip = "Ajusta el color secundario de la UI";
+optHue2.value = secColorHSL[0];
+
+sel optSat2 = new sel(5,115,245,60,12);
+optSat2.tx = "Sat 2";
+optSat2.tooltip = "Ajusta la saturación secundario de la UI";
+optSat2.value = secColorHSL[1];
+
+sel optLum2 = new sel(6,115,260,60,12);
+optLum2.tx = "Lum 2";
+optLum2.tooltip = "Ajusta el brillo secundario de la UI";
+optLum2.value = secColorHSL[2];
+
+sel optHueF = new sel(4,185,230,60,12);
+optHueF.tx = "Hue F.";
+optHueF.tooltip = "Ajusta el color del fondo";
+optHueF.value = bgColor[0];
+
+sel optSatF = new sel(5,185,245,60,12);
+optSatF.tx = "Sat F.";
+optSatF.tooltip = "Ajusta la saturación del fondo";
+optSatF.value = bgColor[1];
+
+sel optLumF = new sel(6,185,260,60,12);
+optLumF.tx = "Lum F.";
+optLumF.tooltip = "Ajusta el brillo del fondo";
+optLumF.value = bgColor[2];
+
+getCurValues();
+void execute(){
+  //fps
+  sec = second();
+  fpsTimer++;
+  if(lastSec != sec){
+    lastSec = sec;
+    FPS = fpsTimer;
+    fpsTimer = 0;
+  }
+  
+  mainColorRGB = fromHSLtoRGB(mainColorHSL[0],mainColorHSL[1],mainColorHSL[2]);
+	secColorRGB = fromHSLtoRGB(secColorHSL[0],secColorHSL[1],secColorHSL[2]);
+  
+  //reinicia tooltips
+  currentTooltip = "";
+  currentTooltipName = "";
+  
+  //fondo
+  double[] rgbBgColor = fromHSLtoRGB(bgColor[0],bgColor[1],bgColor[2]);
+  background(rgbBgColor[0],rgbBgColor[1],rgbBgColor[2]);
+  
+  //render emisor
+  curParticleSystem.render();
+  
+  //marker emisor
+  double xL;
+  double yL;
+  if(mousePressed){
+    if(inBounds()){
+      for(int i = 0; i < curParticleSystem.emitters.length; i++){
+        if(curParticleSystem.emitters[i].moveEmmisor){
+          if(curParticleSystem.emitters[i].emmisorType == 1){
+            curParticleSystem.emitters[i].x = mouseX;
+            curParticleSystem.emitters[i].y = mouseY;
+          }else{
+            curParticleSystem.emitters[i].x = mouseX;
+            curParticleSystem.emitters[i].y = mouseY;
+          }
+          emitterX.value = curEmmiter.x;
+          emitterY.value = curEmmiter.y;
+        }
+        
+      }
+      
+    }    
+  }
+  if(curEmmiter.emmisorType == 1){
+    xL = curEmmiter.x;
+    yL = curEmmiter.y;
+  }else{
+    xL = curEmmiter.x;
+    yL = curEmmiter.y;
+  }
+  strokeWeight(1);
+  if(showEmitters){
+    stroke(generalColor2);
+    noFill();
+    switch(curEmmiter.emmisorType){
+      case 1:
+        rect(curEmmiter.x-curEmmiter.width/2,curEmmiter.y-curEmmiter.height/2,curEmmiter.width,curEmmiter.height);
+      break
+      case 2:
+        ellipse(curEmmiter.x,curEmmiter.y,curEmmiter.width,curEmmiter.height);
+      break
+      case 3:
+        ellipse(curEmmiter.x,curEmmiter.y,curEmmiter.width,curEmmiter.height);
+        ellipse(curEmmiter.x,curEmmiter.y,curEmmiter.width-curEmmiter.arc,curEmmiter.height-curEmmiter.arc);
+      break
+    }
+
+    stroke(generalColor2);
+    int sizeL = 5;
+    line(xL-sizeL,yL,xL+sizeL,yL);
+    line(xL,yL-sizeL,xL,yL+sizeL);
+  }
+  
+  
+  //UI
+
+  fill(mainColorRGB[0], mainColorRGB[1], mainColorRGB[2]);
+  stroke(mainColorRGB[0], mainColorRGB[1], mainColorRGB[2]);
+  if(hideUI){
+    rect(0,0,40,40);
+  }else{
+    if(taskOpened()){
+      drawRectD1(40,220,280,100,60,mainColorHSL,secColorHSL);
+      fill(secColorRGB[0], secColorRGB[1], secColorRGB[2]);
+  		stroke(secColorRGB[0], secColorRGB[1], secColorRGB[2]);
+      //x, y, size, roundiness, angle
+      fancySquare(40,320,90,10,65);
+      fancySquare(320,240,40,10,65);
+      fill(mainColorRGB[0], mainColorRGB[1], mainColorRGB[2]);
+  		stroke(mainColorRGB[0], mainColorRGB[1], mainColorRGB[2]);
+      rect(40,200,280,20);
+    }
+    
+    fill(mainColorRGB[0], mainColorRGB[1], mainColorRGB[2]);
+  	stroke(mainColorRGB[0], mainColorRGB[1], mainColorRGB[2]);
+		rect(0,0,40,320);
+    
+  	emitMenu.update();
+    emitMenu.render();
+    drawEmitUI(0,40);
+    if(emitMenu.clicked){
+      fill(generalColor);
+      propEmitter.update();
+      propEmitter.renderTx();
+      
+      formEmitter.update();
+      formEmitter.renderTx();
+      
+      secEmitter.update();
+      secEmitter.renderTx();
+
+      if(propEmitter.clicked){
+        fill(generalColor);
+        text("Mueve E.",145,305);
+        text("Ráfaga",235,245);
+        text("R. Única",235,275);
+        emitterX.render();
+        emitterY.render();
+        emmiterFrec.render();
+        emmiterMaxP.render();
+        emmiterPAmount.render();
+        emitterMoveMouse.render();
+        emitterBurst.render();
+        emitterOneBurst.render();
+        curEmmiter.x = emitterX.getValue();
+        curEmmiter.y = emitterY.getValue();
+        curEmmiter.spawnRate = round(emmiterFrec.getValue());
+        curEmmiter.maxParticles = round(emmiterMaxP.getValue());
+        curEmmiter.parPerBatch = round(emmiterPAmount.getValue());
+        curEmmiter.moveEmmisor = emitterMoveMouse.getBoolValue();
+        curEmmiter.burst =  emitterBurst.getBoolValue();
+        curEmmiter.oneBurst = emitterOneBurst.getBoolValue();
+        
+        fill(mainColorRGB[0], mainColorRGB[1], mainColorRGB[2]);
+  			stroke(secColorRGB[0], secColorRGB[1], secColorRGB[2]);
+        rect(230,290,80,20);
+        clearParticles.update();
+        clearParticles.renderTx();
+        if(clearParticles.clicked){
+          curEmmiter.arr = new particle[0];
+          curEmmiter.deathArr = new emmiter[0];
+          clearParticles.clicked = false;
+        }
+      }
+        
+      if(formEmitter.clicked){
+        emitterForm.render();
+        curEmmiter.emmisorType = emitterForm.getDropValue();
+        if(curEmmiter.emmisorType > 0){
+          emitterWidth.render();
+          emitterHeight.render();    
+          emitterAspectRatio.render();  
+          
+          fill(generalColor);
+          text("Anchura",140,247);
+          text("Altura",140,267);
+          text("Aspecto",140,307);
+          
+          curEmmiter.width = emitterWidth.getValue();
+          curEmmiter.height = emitterHeight.getValue();
+          curEmmiter.eAspectRatio = emitterAspectRatio.getBoolValue();   
+          
+          if(curEmmiter.emmisorType == 3){
+            emitterArc.render();
+            fill(generalColor);
+            text("Anillo",140,287);
+            curEmmiter.arc = emitterArc.getValue();
+          } 
+        }
+         
+      }
+      
+      if(secEmitter.clicked){
+        for(int i = 0; i < listEmitters.bigNames.length; i++){
+        	deathEmitters.simpleNames[i] = "Emisor "+ i;      
+        }
+        
+        deathEmitters.render();
+        deathEmittersLife.render();
+        curEmmiter.deathEmmit = curParticleSystem.emitters[deathEmitters.getSimpleValue()];
+        curEmmiter.deathEmitLife = round(deathEmittersLife.getValue());
+          
+        fill(mainColorRGB[0], mainColorRGB[1], mainColorRGB[2]);
+  			stroke(secColorRGB[0], secColorRGB[1], secColorRGB[2]);
+        rect(180,230,20,20);
+        rect(180,290,20,20);
+        fill(secColorRGB[0], secColorRGB[1], secColorRGB[2]);
+        triangle(185,245,195,245,190,235);
+        triangle(185,295,195,295,190,305);
+        
+        upPage.x = 180;
+        upPage.y = 230;
+        downPage.x = 180;
+        downPage.y = 290;
+        upPage.render();
+        upPage.update();
+        downPage.render();
+        downPage.update();
+        
+        if(upPage.clicked){
+        	upPage.clicked = false;
+          if(deathEmitters.simpleStart > 0){
+            deathEmitters.simpleStart--;
+          }
+        }
+        if(downPage.clicked){
+          downPage.clicked = false;
+          if(deathEmitters.simpleStart+1 < deathEmitters.simpleNames.length){
+            deathEmitters.simpleStart++;
+          }
+        }
+      }
+
+    }
+    
+  	partMenu.update();
+    partMenu.render();
+    drawParticleUI(0,80);
+    if(partMenu.clicked){
+      fill(generalColor);
+      
+      propParticle.update();
+      propParticle.renderTx();
+        
+      formParticle.update();
+      formParticle.renderTx();
+      
+      movParticle.update();
+      movParticle.renderTx();
+      
+      colParticle.update();
+			colParticle.renderTx();
+      
+      phyParticle.update();
+      phyParticle.renderTx();
+      
+      if(propParticle.clicked){
+        fill(generalColor);
+        text("Mín.",195,232);
+        text("Máx.",239,232);
+        text("Inc.",287,232);
+        text("Alpha",140,247);
+        text("Alpha B.",140,267);
+        
+        particleMinLifetime.render();
+        particleMaxLifetime.render();
+        particleInfLifetime.render();
+        
+        particleMinAlpha.render();
+        particleMaxAlpha.render();
+        particleIncAlpha.render();
+        particleMinAlphaB.render();
+        particleMaxAlphaB.render();
+        particleIncAlphaB.render();
+        
+        curEmmiter.minplifetime = round(particleMinLifetime.getValue());
+        curEmmiter.maxplifetime = round(particleMaxLifetime.getValue());
+        
+        curEmmiter.minpalpha = particleMinAlpha.getValue();
+        curEmmiter.maxpalpha = particleMaxAlpha.getValue();
+        curEmmiter.palphaIncrease = particleIncAlpha.getValue();
+        curEmmiter.minpalphaStr = particleMinAlphaB.getValue();
+        curEmmiter.maxpalphaStr = particleMaxAlphaB.getValue();
+        curEmmiter.palphaStrIncrease = particleIncAlphaB.getValue();
+        curEmmiter.infLifetime = particleInfLifetime.getBoolValue();
+        fill(generalColor);
+        text("Vida I.",60,305);
+      }
+      
+      if(formParticle.clicked){
+        particleForm.render();
+        curEmmiter.type = particleForm.getDropValue();
+        fill(generalColor);
+        if(curEmmiter.type == 1 || curEmmiter.type == 2){
+          text("Mín.",195,232);
+          text("Máx.",239,232);
+          text("Inc.",287,232);
+          text("Anchura",140,247);
+          text("Altura",140,267);
+          text("Borde",140,287);
+          text("Aspecto",140,307);
+          
+          particleMinWidth.render();
+          particleMaxWidth.render();
+          particleIncWidth.render();
+          particleMinHeight.render();
+          particleMaxHeight.render();
+          particleIncHeight.render();
+          particleMinStr.render();
+          particleMaxStr.render();
+          particleIncStr.render();
+          particleAspectRatio.render();
+            
+          
+          curEmmiter.minpwidth = particleMinWidth.getValue();
+          curEmmiter.maxpwidth = particleMaxWidth.getValue();
+          curEmmiter.pwidthIncrease = particleIncWidth.getValue();
+          curEmmiter.minpheight = particleMinHeight.getValue();
+          curEmmiter.maxpheight = particleMaxHeight.getValue();
+          curEmmiter.pheightIncrease = particleIncHeight.getValue();
+          curEmmiter.minpstrWidth = round(particleMinStr.getValue());
+          curEmmiter.maxpstrWidth = round(particleMaxStr.getValue());
+          curEmmiter.pstrWidthIncrease = round(particleIncStr.getValue());
+          curEmmiter.aspectRatio = particleAspectRatio.getBoolValue();
+        }
+        
+      }
+      
+      if(movParticle.clicked){
+        fill(generalColor);
+        text("Mín.",195,232);
+        text("Máx.",239,232);
+        text("Inc.",287,232);
+        text("Ángulo",140,247);
+        text("Vel.",140,267);
+        text("Seno",45,247);
+        text("Coseno",45,287);
+        
+        particleMinAngle.render();
+        particleMaxAngle.render();
+        particleIncAngle.render();
+        particleMinVel.render();
+        particleMaxVel.render();
+        particleIncVel.render();
+        
+        particleSen.render();
+        particleSenAmp.render();
+        particleSenVel.render();
+        particleCos.render();
+        particleCosAmp.render();
+        particleCosVel.render();
+        
+        curEmmiter.minpangle = particleMinAngle.getValue();
+      	curEmmiter.maxpangle = particleMaxAngle.getValue();
+        curEmmiter.pangleIncrease = particleIncAngle.getValue();
+        curEmmiter.minpspeed = particleMinVel.getValue();
+        curEmmiter.maxpspeed = particleMaxVel.getValue();
+        curEmmiter.pspeedIncrease = particleIncVel.getValue();
+        
+        curEmmiter.psenX = particleSen.getBoolValue();
+      	curEmmiter.pampX = particleSenAmp.getValue();
+        curEmmiter.pspeedX = particleSenVel.getValue();
+        curEmmiter.pcosY = particleCos.getBoolValue();
+        curEmmiter.pampY = particleCosAmp.getValue();
+        curEmmiter.pspeedY = particleCosVel.getValue();
+      }
+      
+      if(colParticle.clicked){
+        //45,115
+        fill(generalColor);
+        text("Color I.",45,287);
+        text("Color M.",115,287);
+        text("Color F.",185,287);
+        text("Color B.",255,287);
+        
+        stroke(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+        int[] startColor = fromHSLtoRGB(curEmmiter.sHsl[0],curEmmiter.sHsl[1],curEmmiter.sHsl[2]);
+        int[] midColor = fromHSLtoRGB(curEmmiter.mHsl[0],curEmmiter.mHsl[1],curEmmiter.mHsl[2]);
+        int[] endColor = fromHSLtoRGB(curEmmiter.eHsl[0],curEmmiter.eHsl[1],curEmmiter.eHsl[2]);
+        int[] strColor = fromHSLtoRGB(curEmmiter.phslStr[0],curEmmiter.phslStr[1],curEmmiter.phslStr[2]);
+        
+        fill(startColor[0],startColor[1],startColor[2]);
+        rect(45,293,60,15);
+        fill(midColor[0],midColor[1],midColor[2]);
+        rect(115,293,60,15);
+        fill(endColor[0],endColor[1],endColor[2]);
+        rect(185,293,60,15);
+        fill(strColor[0],strColor[1],strColor[2]);
+        rect(255,293,60,15);
+        
+        particleHue1.render();
+        particleSat1.render();
+        particleLum1.render();
+        
+        particleHue2.render();
+        particleSat2.render();
+        particleLum2.render();
+        
+        particleHue3.render();
+        particleSat3.render();
+        particleLum3.render();
+        
+        particleHueStr.render();
+        particleSatStr.render();
+        particleLumStr.render();
+        
+        curEmmiter.sHsl[0] = particleHue1.getValue();
+        particleSat1.renderedHue = curEmmiter.sHsl[0];
+        curEmmiter.sHsl[1] = particleSat1.getValue();
+        curEmmiter.sHsl[2] = particleLum1.getValue();
+        
+        curEmmiter.mHsl[0] = particleHue2.getValue();
+        particleSat2.renderedHue = curEmmiter.mHsl[0];
+        curEmmiter.mHsl[1] = particleSat2.getValue();
+        curEmmiter.mHsl[2] = particleLum2.getValue();
+        
+        curEmmiter.eHsl[0] = particleHue3.getValue();
+        particleSat3.renderedHue = curEmmiter.eHsl[0];
+        curEmmiter.eHsl[1] = particleSat3.getValue();
+        curEmmiter.eHsl[2] = particleLum3.getValue();
+        
+        curEmmiter.phslStr[0] = particleHueStr.getValue();
+        particleSatStr.renderedHue = curEmmiter.phslStr[0];
+        curEmmiter.phslStr[1] = particleSatStr.getValue();
+        curEmmiter.phslStr[2] = particleLumStr.getValue();
+        
+      }
+      
+      if(phyParticle.clicked){
+        for(int i = 0; i < particleAtractors.bigNames.length; i++){
+          if(curEmmiter.atractors[i].atract){
+            particleAtractors.bigNames[i] = "Atractor "+ i;
+          }else{
+            particleAtractors.bigNames[i] = "Repulsor "+ i;
+          }        
+        }
+        
+        particleAtractors.render();
+        
+        fill(mainColorRGB[0], mainColorRGB[1], mainColorRGB[2]);
+  			stroke(secColorRGB[0], secColorRGB[1], secColorRGB[2]);
+        rect(180,230,20,20);
+        rect(180,290,20,20);
+        fill(secColorRGB[0], secColorRGB[1], secColorRGB[2]);
+        triangle(185,245,195,245,190,235);
+        triangle(185,295,195,295,190,305);
+        
+        upPage.x = 180;
+        upPage.y = 230;
+        downPage.x = 180;
+        downPage.y = 290;
+        upPage.render();
+        upPage.update();
+        downPage.render();
+        downPage.update();
+        
+        if(upPage.clicked){
+        	upPage.clicked = false;
+          if(particleAtractors.bigStart > 0){
+            particleAtractors.bigStart--;
+          }
+        }
+        if(downPage.clicked){
+          downPage.clicked = false;
+          if(particleAtractors.bigStart+1 < particleAtractors.bigNames.length){
+            particleAtractors.bigStart++;
+          }
+        }
+        int atractorSelected = particleAtractors.getBigValue();   
+
+        if(particleAtractors.bigNames.length > 0){
+          atractorsX[atractorSelected].render();
+          atractorsY[atractorSelected].render();
+          atractorsStr[atractorSelected].render();
+          atractorsAtr[atractorSelected].render();
+
+          curEmmiter.atractors[atractorSelected].pos.x = atractorsX[atractorSelected].getValue();
+          curEmmiter.atractors[atractorSelected].pos.y = atractorsY[atractorSelected].getValue();
+          curEmmiter.atractors[atractorSelected].strength = atractorsStr[atractorSelected].getValue();
+          curEmmiter.atractors[atractorSelected].atract = atractorsAtr[atractorSelected].getBoolValue();
+        }
+        
+        
+        if(particleAtractors.bigSus){
+          particleAtractors.bigSus = false;
+					
+          if(particleAtractors.bigSusIndex == atractorSelected ||
+            atractorSelected > particleAtractors.bigSusIndex){
+            atractorSelected = 0;
+            particleAtractors.bigValue = 0;
+          }
+          
+          atractor[] aux = curEmmiter.atractors;
+          curEmmiter.atractors = new atractor[aux.length-1];
+          int n = 0;
+          for(int i = 0; i < aux.length; i++){
+            if(i != particleAtractors.bigSusIndex){
+              curEmmiter.atractors[n] = aux[i];
+              n++;
+            }
+          }
+          
+          String[] aux2 = particleAtractors.bigNames;
+          particleAtractors.bigNames = new String[aux2.length-1];
+          int n2 = 0;
+          for(int i = 0; i < aux2.length; i++){
+            if(i != particleAtractors.bigSusIndex){
+              particleAtractors.bigNames[n2] = aux2[i];
+              n2++;
+            }
+          }
+          
+          atractorsX = delSel(atractorsX, particleAtractors.bigSusIndex);
+          atractorsY = delSel(atractorsY, particleAtractors.bigSusIndex);
+          atractorsStr = delSel(atractorsStr, particleAtractors.bigSusIndex);
+          atractorsAtr = delSel(atractorsAtr, particleAtractors.bigSusIndex);
+        }
+        
+        if(particleAtractors.bigAdd){
+          particleAtractors.bigAdd = false;
+          atractor[] aux = curEmmiter.atractors;
+          curEmmiter.atractors = new atractor[aux.length+1];
+          for(int i = 0; i < aux.length; i++){
+            curEmmiter.atractors[i] = aux[i]; 
+          }
+          curEmmiter.atractors[aux.length] = new atractor(0,0,0);
+          
+          String[] aux2 = particleAtractors.bigNames;
+          particleAtractors.bigNames = new String[aux2.length+1];
+          for(int i = 0; i < aux2.length; i++){
+            particleAtractors.bigNames[i] = aux2[i]; 
+          }
+          particleAtractors.bigNames[aux2.length] = "Atractor "+ aux2.length;
+          
+          sel newSelX = new sel(1,210,230,80,20);
+          sel newSelY = new sel(1,210,260,80,20);
+          sel newSelStr = new sel(1,210,290,80,20);
+          sel newSelAtr = new sel(2,180,260,20,20);
+
+          newSelX.minValue = 0;
+          newSelX.maxValue = 320;
+          newSelX.value = curEmmiter.atractors[aux.length].pos.x;
+          newSelX.tx = "X Fuerzas";
+          newSelX.tooltip = "Posición de la fuerza en X";
+
+          newSelY.minValue = 0;
+          newSelY.maxValue = 320;
+          newSelY.value = curEmmiter.atractors[aux.length].pos.y;
+          newSelY.tx = "Y Fuerzas";
+          newSelY.tooltip = "Posición del emisor en X";
+
+          newSelStr.minValue = 0;
+          newSelStr.maxValue = 30;
+          newSelStr.value = curEmmiter.atractors[aux.length].strength;
+          newSelStr.tx = "M. Fuerzas";
+          newSelStr.tooltip = "Magnitud de la fuerza";
+
+          newSelAtr.boolValue = curEmmiter.atractors[aux.length].atract;
+          newSelAtr.tx = "Sentido";
+          newSelAtr.tooltip = "Cambia el sentido de atractor a repulsor";
+          
+          atractorsX = addSel(atractorsX, newSelX);
+          atractorsY = addSel(atractorsY, newSelY);
+          atractorsStr = addSel(atractorsStr, newSelStr);
+          atractorsAtr = addSel(atractorsAtr, newSelAtr);
+        }
+      }
+    }
+    
+  	exMenu.update();
+    exMenu.render();
+    drawFavoritesUI(0,120);
+    if(exMenu.clicked){
+      fill(generalColor);
+      emmiterList.update();
+      emmiterList.renderTx();
+      
+      systemList.update();
+      systemList.renderTx();
+      
+      if(emmiterList.clicked){
+        for(int i = 0; i < listEmitters.bigNames.length; i++){
+        	listEmitters.bigNames[i] = "Emisor "+ i;      
+        }
+        
+        fill(generalColor);
+        text("Esconder",235,245);       
+        
+        listEmitters.render();
+        
+        fill(mainColorRGB[0], mainColorRGB[1], mainColorRGB[2]);
+  			stroke(secColorRGB[0], secColorRGB[1], secColorRGB[2]);
+        rect(180,230,20,20);
+        rect(180,290,20,20);
+        fill(secColorRGB[0], secColorRGB[1], secColorRGB[2]);
+        triangle(185,245,195,245,190,235);
+        triangle(185,295,195,295,190,305);
+        
+        upPage.x = 180;
+        upPage.y = 230;
+        downPage.x = 180;
+        downPage.y = 290;
+        upPage.render();
+        upPage.update();
+        downPage.render();
+        downPage.update();
+        
+        if(upPage.clicked){
+        	upPage.clicked = false;
+          if(listEmitters.bigStart > 0){
+            listEmitters.bigStart--;
+          }
+        }
+        if(downPage.clicked){
+          downPage.clicked = false;
+          if(listEmitters.bigStart+1 < listEmitters.bigNames.length){
+            listEmitters.bigStart++;
+          }
+        }
+        curParticleSystem.curEmitter = listEmitters.getBigValue(); 
+        particleAtractors.bigValue = 0;
+        particleAtractors.bigStart = 0;
+        curEmmiter = curParticleSystem.emitters[curParticleSystem.curEmitter];
+        
+        if(listEmitters.bigNames.length > 0){
+          listEmitterHide[curParticleSystem.curEmitter].render();
+          curParticleSystem.emitters[curParticleSystem.curEmitter].hide = listEmitterHide[curParticleSystem.curEmitter].getBoolValue();
+        }
+        if(listEmitters.bigSus && curParticleSystem.emitters.length == 1){
+          listEmitters.bigSus = false;
+        }
+        if(listEmitters.bigSus){
+          listEmitters.bigSus = false;
+					
+          if(listEmitters.bigSusIndex == curParticleSystem.curEmitter ||
+            curParticleSystem.curEmitter > listEmitters.bigSusIndex){
+            curParticleSystem.curEmitter = 0;
+            listEmitters.bigValue = 0;
+            curEmmiter = curParticleSystem.emitters[curParticleSystem.curEmitter];
+            if(listEmitters.bigSusIndex == 0){
+              curEmmiter = curParticleSystem.emitters[1];
+            }
+          }
+          
+          String[] aux2 = listEmitters.bigNames;
+          listEmitters.bigNames = new String[aux2.length-1];
+          int n2 = 0;
+          for(int i = 0; i < aux2.length; i++){
+            if(i != listEmitters.bigSusIndex){
+              listEmitters.bigNames[n2] = aux2[i];
+              n2++;
+            }
+          }
+          
+          curParticleSystem.del(listEmitters.bigSusIndex);
+          
+          listEmitterHide = delSel(listEmitterHide, listEmitters.bigSusIndex);
+
+        }
+        
+        if(listEmitters.bigAdd){
+          listEmitters.bigAdd = false;
+          
+          String[] aux2 = listEmitters.bigNames;
+          listEmitters.bigNames = new String[aux2.length+1];
+          for(int i = 0; i < aux2.length; i++){
+            listEmitters.bigNames[i] = aux2[i]; 
+          }
+          listEmitters.bigNames[aux2.length] = "Emisor "+ aux2.length;
+          
+          double[] defaultColor = {196,1,0.5};
+          emmiter newEmitter = new emmiter(160,100,defaultColor,1,0,0);
+					newEmitter.phslStr = defaultColor;
+          curParticleSystem.add(newEmitter);
+          
+          sel newListEmitterHide = new sel(2,270,230,20,20);
+          newListEmitterHide.boolValue = curParticleSystem.emitters[curParticleSystem.curEmitter].hide;
+          newListEmitterHide.tx = "Esconder";
+  				newListEmitterHide.tooltip = "Hace invisble al emisor seleccionado";
+          listEmitterHide = addSel(listEmitterHide, newListEmitterHide);
+        }
+      }
+      
+      if(systemList.clicked){
+        listSystems.render();
+        
+        fill(mainColorRGB[0], mainColorRGB[1], mainColorRGB[2]);
+  			stroke(secColorRGB[0], secColorRGB[1], secColorRGB[2]);
+        rect(260,230,20,20);
+        rect(260,290,20,20);
+        fill(secColorRGB[0], secColorRGB[1], secColorRGB[2]);
+        triangle(265,245,275,245,270,235);
+        triangle(265,295,275,295,270,305);
+        
+        upPage.x = 260;
+        upPage.y = 230;
+        downPage.x = 260;
+        downPage.y = 290;
+        
+        upPage.render();
+        upPage.update();
+        downPage.render();
+        downPage.update();
+        
+        if(upPage.clicked){
+        	upPage.clicked = false;
+          if(listSystems.bigStart > 0){
+            listSystems.bigStart--;
+          }
+        }
+        if(downPage.clicked){
+          downPage.clicked = false;
+          if(listSystems.bigStart+1 < listSystems.bigNames.length){
+            listSystems.bigStart++;
+          }
+        }
+        int prevSystem = pSystem;
+       	pSystem = listSystems.getBigValue(); 
+        if(prevSystem != pSystem){
+          listEmitters.bigValue = 0;
+          listEmitters.bigStart = 0;
+        }
+        curParticleSystem = allParticleSystems[pSystem];
+        curEmmiter = curParticleSystem.emitters[curParticleSystem.curEmitter];
+     
+        if(listSystems.bigSus && allParticleSystems.length == 1){
+          listSystems.bigSus = false;
+        }
+        if(listSystems.bigSus){
+          listSystems.bigSus = false;
+					
+          if(listSystems.bigSusIndex == pSystem || pSystem > listSystems.bigSusIndex){
+            pSystem = 0;
+            listSystems.bigValue = 0;
+            curParticleSystem = allParticleSystems[pSystem];
+            curEmmiter = curParticleSystem.emitters[curParticleSystem.curEmitter];
+          }
+          
+          String[] aux = listSystems.bigNames;
+          listSystems.bigNames = new String[aux.length-1];
+          int n = 0;
+          for(int i = 0; i < aux.length; i++){
+            if(i != listSystems.bigSusIndex){
+              listSystems.bigNames[n] = aux[i];
+              n++;
+            }
+          }
+          
+          particleSystem[] aux2 = allParticleSystems;
+          allParticleSystems = new particleSystem[aux2.length-1];
+          int n2 = 0;
+          for(int i = 0; i < aux2.length; i++){
+            if(i != listSystems.bigSusIndex){
+              allParticleSystems[n2] = aux2[i];
+              n2++;
+            }
+          }      
+        }
+        
+        if(listSystems.bigAdd){
+          listSystems.bigAdd = false;
+          
+          String[] aux = listSystems.bigNames;
+          listSystems.bigNames = new String[aux.length+1];
+          for(int i = 0; i < aux.length; i++){
+            listSystems.bigNames[i] = aux[i]; 
+          }
+          listSystems.bigNames[aux.length] = "Sistema "+ newSystems;
+          newSystems++;
+          
+          particleSystem newParticleSystem = new particleSystem();          
+          double[] defaultColor = {196,1,0.5};
+          emmiter newEmitter = new emmiter(160,100,defaultColor,1,0,0);
+					newEmitter.phslStr = defaultColor;
+          newParticleSystem.add(newEmitter);
+          
+          particleSystem[] aux2 = allParticleSystems;
+          allParticleSystems = new particleSystem[aux2.length+1];
+          for(int i = 0; i < aux2.length; i++){
+            allParticleSystems[i] = aux2[i]; 
+          }
+          allParticleSystems[aux2.length] = newParticleSystem;
+        }
+      }
+    }
+    
+  	helpMenu.update();
+    helpMenu.render();
+    drawHelpUI(0,160);
+    if(helpMenu.clicked){
+      genHelp.update();
+      genHelp.renderTx();
+      
+      emHelp.update();
+      emHelp.renderTx();
+      
+      partHelp.update();
+      partHelp.renderTx();
+      
+      listHelp.update();
+      listHelp.renderTx();
+      
+      if(genHelp.clicked){
+        fill(generalColor);
+        text("Este es el menú de ayuda. Antes de nada, si no has leido ",45,235);
+        text("lo escrito debajo del programa, hazlo ahora. El programa ",45,250);
+        text("está divido en sistemas, emisores y partículas. Cada nivel",45,265);
+        text("puede tener varios de nivel inferior y relacionarse entre",45,280);
+        text("ellos.",45,295);
+      }
+      if(emHelp.clicked){
+        fill(generalColor);
+        text("Los emisores emiten partículas, pueden hacer esto con",45,235);
+        text("una frecuencia, cantidad, posición y más parámetros.",45,250);
+        text("También se puede modificar el área de emisión. Por",45,265);
+        text("último, puedes meter un emisor secundario. Esto hace",45,280);
+        text("que cuando muera una partícula genere un emisor",45,295);
+        text("temporal en su última posición.",45,310);
+      }
+      if(partHelp.clicked){
+        fill(generalColor);
+        text("Las partículas son el núcleo del programa. Tiene una",45,235);
+        text("vida, y cuando se termina se mueren. Se puede cambiar",45,250);
+        text("su transparencia, forma, borde, movimiento y color. Se",45,265);
+        text("pueden introducir unos mínimos y máximos, y la partícula",45,280);
+        text("tendrá un valor aleatorio entre esos dos. Por último, la",45,295);
+        text("función de físicas permite introducir y modificar fuerzas.",45,310);
+      }
+      if(listHelp.clicked){
+        fill(generalColor);
+        text("El apartado de favoritos tiene dos partes: emisores y",45,235);
+        text("sistemas de partículas. La lista de emisores te permite",45,250);
+        text("añadirlos o quitarlos. También los puedes esconder",45,265);
+        text("si no quieres que se vean. En la lista de sistemas hay",45,280);
+        text("varios ejemplos y sistemas hechos por otros. Ahí puedes",45,295);
+        text("modificar uno ya existente o intentar crear uno nuevo.",45,310);
+      }
+    }
+    
+  	settMenu.update();
+    settMenu.render();
+    drawSettingsUI(0,200);
+    if(settMenu.clicked){
+      genOptions.update();
+      genOptions.renderTx();
+      
+      colOptions.update();
+      colOptions.renderTx();
+      
+      if(genOptions.clicked){
+        fill(generalColor);
+        text("Fuerzas",80,245); 
+        text("Dirección",80,275); 
+        text("Info",80,305); 
+        text("Emisores",180,245); 
+        
+        optShowAtractors.render();
+        optDebugParticle.render();
+        optHideInfo.render();
+        optShowEmitters.render();
+        optGeneralColor.render();
+        optGeneralColor2.render();
+        
+        showAtractors = optShowAtractors.getBoolValue();
+        debugParticle = optDebugParticle.getBoolValue();
+        hideInfo = optHideInfo.getBoolValue();
+        showEmitters = optShowEmitters.getBoolValue();
+        generalColor = round(optGeneralColor.getValue());
+        generalColor2 = round(optGeneralColor2.getValue());
+      }
+      if(colOptions.clicked){
+        fill(generalColor);
+        text("Color 1",45,287);
+        text("Color 2",115,287);
+        text("Color F.",185,287);
+        
+        double[] bg = fromHSLtoRGB(bgColor[0],bgColor[1],bgColor[2]);
+        stroke(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+        
+        fill(mainColorRGB[0],mainColorRGB[1],mainColorRGB[2]);
+        rect(45,293,60,15);
+        fill(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+        rect(115,293,60,15);
+        fill(bg[0],bg[1],bg[2]);
+        rect(185,293,60,15);
+        
+        optHue1.render();
+        optSat1.render();
+        optLum1.render();
+        
+        optHue2.render();
+        optSat2.render();
+        optLum2.render();
+        
+        optHueF.render();
+        optSatF.render();
+        optLumF.render();
+        
+        mainColorHSL[0] = optHue1.getValue();
+        optSat1.renderedHue = mainColorHSL[0];
+        mainColorHSL[1] = optSat1.getValue();
+        mainColorHSL[2] = optLum1.getValue();
+        
+        secColorHSL[0] = optHue2.getValue();
+        optSat2.renderedHue = secColorHSL[0];
+        secColorHSL[1] = optSat2.getValue();
+        secColorHSL[2] = optLum2.getValue();
+        
+        bgColor[0] = optHueF.getValue();
+        optSatF.renderedHue = bgColor[0];
+        bgColor[1] = optSatF.getValue();
+        bgColor[2] = optLumF.getValue();
+        
+      }
+    }
+    
+    download.update();
+    download.render();
+    drawDownloadUI(0,240);
+    if(download.clicked){
+      download.clicked = false;
+      //x, y, color, tipo de particula, spawnRate, emmisorType
+      for(int i = 0; i < curParticleSystem.emitters.length; i++){
+        emmiter e = curParticleSystem.emitters[i];
+        String eName = "n"+(i+1);
+        
+        println("double[] sColor"+(i+1)+" = {"+e.sHsl[0]+","+e.sHsl[1]+","+e.sHsl[2]+"};");
+        println("double[] mColor"+(i+1)+" = {"+e.mHsl[0]+","+e.mHsl[1]+","+e.mHsl[2]+"};");
+        println("double[] eColor"+(i+1)+" = {"+e.eHsl[0]+","+e.eHsl[1]+","+e.eHsl[2]+"};");
+        println("double[] strColor"+(i+1)+" = {"+e.phslStr[0]+","+e.phslStr[1]+","+e.phslStr[2]+"};");
+        
+        println("emmiter "+eName+" = new emmiter("+e.x+","+e.y+",sColor"+(i+1)+","+e.type+","+e.spawnRate+","+e.emmisorType+");");
+        println(eName+".sHsl = sColor"+(i+1)+";");        
+        println(eName+".mHsl = mColor"+(i+1)+";");    
+        println(eName+".eHsl = eColor"+(i+1)+";");    
+        println(eName+".phslStr = strColor"+(i+1)+";");    
+        println(eName+".maxParticles = "+e.maxParticles+";");    
+        println(eName+".parPerBatch = "+e.parPerBatch+";");    
+        println(eName+".burst = "+e.burst+";");    
+        println(eName+".oneBurst = "+e.oneBurst+";");  
+        println(eName+".width = "+e.width+";");    
+        println(eName+".height = "+e.height+";");    
+        println(eName+".minpwidth = "+e.minpwidth+";");    
+        println(eName+".maxpwidth = "+e.maxpwidth+";");    
+        println(eName+".pwidthIncrease = "+e.pwidthIncrease+";");    
+        println(eName+".minpheight = "+e.minpheight+";");    
+        println(eName+".maxpheight = "+e.maxpheight+";");    
+        println(eName+".pheightIncrease = "+e.pheightIncrease+";");    
+        println(eName+".minpstrWidth = "+e.minpstrWidth+";");    
+        println(eName+".maxpstrWidth = "+e.maxpstrWidth+";");    
+        println(eName+".pstrWidthIncrease = "+e.pstrWidthIncrease+";");    
+        println(eName+".aspectRatio = "+e.aspectRatio+";");    
+        println(eName+".minplifetime = "+e.minplifetime+";");    
+        println(eName+".maxplifetime = "+e.maxplifetime+";");  
+        println(eName+".infLifetime = "+e.infLifetime+";"); 
+        println(eName+".minpangle = "+e.minpangle+";"); 
+        println(eName+".maxpangle = "+e.maxpangle+";"); 
+        println(eName+".pangleIncrease = "+e.pangleIncrease+";"); 
+        println(eName+".minpspeed = "+e.minpspeed+";"); 
+        println(eName+".maxpspeed = "+e.maxpspeed+";"); 
+        println(eName+".pspeedIncrease = "+e.pspeedIncrease+";"); 
+        println(eName+".psenX = "+e.psenX+";"); 
+        println(eName+".pampX = "+e.pampX+";"); 
+        println(eName+".pspeedX = "+e.pspeedX+";"); 
+        println(eName+".pcosY = "+e.pcosY+";"); 
+        println(eName+".pampY = "+e.pampY+";"); 
+        println(eName+".pspeedY = "+e.pspeedY+";"); 
+        println(eName+".minpalpha = "+e.minpalpha+";"); 
+        println(eName+".maxpalpha = "+e.maxpalpha+";");
+        println(eName+".palphaIncrease = "+e.palphaIncrease+";"); 
+        println(eName+".minpalphaStr = "+e.minpalphaStr+";"); 
+        println(eName+".maxpalphaStr = "+e.maxpalphaStr+";"); 
+        println(eName+".palphaStrIncrease = "+e.palphaStrIncrease+";"); 
+        println(eName+".infLifetime = "+e.infLifetime+";"); 
+        println(eName+".moveEmmisor = "+e.moveEmmisor+";");
+        if(e.deathEmmit != null){
+          int deathEmitter = 0;
+          for(int j = 0; j < curParticleSystem.emitters.length; j++){
+            if(e.deathEmmit == curParticleSystem.emitters[j]){
+              deathEmitter = j+1;
+            }
+          }
+          println(eName+".deathEmmit = n"+deathEmitter+";");
+        }        
+        println(eName+".deathEmitLife = "+e.deathEmitLife+";");
+        println(eName+".atractors = new atractor["+e.atractors.length+"];"); 
+        for(int j = 0; j < e.atractors.length; j++){
+          println(eName+".atractors["+j+"] = new atractor("+e.atractors[j].pos.x+","+e.atractors[j].pos.y+","+e.atractors[j].strength+");"); 
+          println(eName+".atractors["+j+"].atract = "+e.atractors[j].atract+";");
+        }
+        println(" ");
+      }
+      println("particleSystem p = new particleSystem();");
+      for(int i = 0; i < curParticleSystem.emitters.length; i++){
+        println("p.add(n"+(i+1)+");");        
+      }
+      println("");
+    }
+  }
+
+  openMenu.update();
+  openMenu.render();
+   
+  hideUI = openMenu.clicked;
+  
+  barListUI(0,0);
+  
+  //update emisor
+  curParticleSystem.update();
+  
+  curParticleSystem.emitters[curParticleSystem.curEmitter] = curEmmiter;
+  getCurValues();
+  
+  //texto info
+  
+  int numParticles = 0;
+  for(int i = 0; i < curParticleSystem.emitters.length; i++){  
+    if(!curParticleSystem.emitters[i].hide){
+      numParticles += getNumParticles(curParticleSystem.emitters[i]);
+      //numParticles += curParticleSystem.emitters[i].arr.length;
+			/*for(int j = 0; j < curParticleSystem.emitters[i].deathArr.length; j++){
+        numParticles += curParticleSystem.emitters[i].deathArr[j].arr.length;
+      }*/      
+    }
+  }
+  
+  if(!hideUI){
+    fill(secColorRGB[0],secColorRGB[1],secColorRGB[2]);
+    if(currentTooltipName != ""){
+      text(currentTooltipName+" : ",45,195);
+    }
+    fill(generalColor2);
+    text(currentTooltip,45+textWidth(currentTooltipName+" : "),195);
+  }  
+  if(hideInfo){
+    fill(generalColor2);
+    textSize(8);
+    text("FPS: "+FPS, 45, 10);
+      
+    text("Partículas: "+numParticles, 85, 10);  
+  }
+}
+
+int getNumParticles(emmiter arrE){
+  int num = 0;
+  num += arrE.arr.length;
+  for(int i = 0; i < arrE.deathArr.length; i++){
+    num += getNumParticles(arrE.deathArr[i]);
+  }
+  return num
+}
